@@ -13,12 +13,14 @@ public class StripeService
     private readonly AppDbContext _db;
     private readonly StripeOptions _options;
     private readonly ILogger<StripeService> _logger;
+    private readonly InvoiceService _invoices;
 
-    public StripeService(AppDbContext db, IOptions<StripeOptions> options, ILogger<StripeService> logger)
+    public StripeService(AppDbContext db, IOptions<StripeOptions> options, ILogger<StripeService> logger, InvoiceService invoices)
     {
         _db = db;
         _options = options.Value;
         _logger = logger;
+        _invoices = invoices;
         if (!string.IsNullOrEmpty(_options.SecretKey))
         {
             StripeConfiguration.ApiKey = _options.SecretKey;
@@ -103,10 +105,40 @@ public class StripeService
                     await UpsertSubscriptionAsync(stripeSub, ct);
                 }
                 break;
+
+            case "invoice.paid":
+            case "invoice.payment_succeeded":
+                if (stripeEvent.Data.Object is Stripe.Invoice paidInvoice)
+                {
+                    await GenerateInvoiceFromStripeAsync(paidInvoice, ct);
+                }
+                break;
+
             default:
                 _logger.LogInformation("Unhandled Stripe event: {Type}", stripeEvent.Type);
                 break;
         }
+    }
+
+    private async Task GenerateInvoiceFromStripeAsync(Stripe.Invoice paid, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(paid.CustomerId)) return;
+        var local = await _db.Subscriptions.FirstOrDefaultAsync(s => s.StripeCustomerId == paid.CustomerId, ct);
+        if (local is null)
+        {
+            _logger.LogWarning("invoice.paid for unknown customer {CustomerId}", paid.CustomerId);
+            return;
+        }
+
+        var paidAt = paid.StatusTransitions?.PaidAt ?? DateTime.UtcNow;
+        await _invoices.CreateFromStripePaidAsync(
+            userId: local.UserId,
+            stripeInvoiceId: paid.Id,
+            stripePaymentIntentId: null,
+            amountPaidGr: paid.AmountPaid,
+            currency: paid.Currency ?? "PLN",
+            paidAt: paidAt,
+            ct);
     }
 
     private async Task<Domain.Entities.Subscription> GetOrCreateLocalSubscriptionAsync(User user, CancellationToken ct)

@@ -104,4 +104,50 @@ public class BillingController : ControllerBase
             return BadRequest();
         }
     }
+
+    public record BillingProfileDto(
+        string? CompanyName, string? Nip, string? AddressLine,
+        string? PostalCode, string? City, string Country = "PL");
+
+    [HttpGet("profile")]
+    [Authorize]
+    public async Task<IActionResult> GetProfile(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var profile = await _db.BillingProfiles.FirstOrDefaultAsync(b => b.UserId == userId, ct);
+        if (profile is null) return Ok(new BillingProfileDto(null, null, null, null, null));
+        return Ok(new BillingProfileDto(
+            profile.CompanyName, profile.Nip, profile.AddressLine,
+            profile.PostalCode, profile.City, profile.Country));
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] BillingProfileDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+
+        var profile = await _db.BillingProfiles.FirstOrDefaultAsync(b => b.UserId == userId, ct);
+        if (profile is null)
+        {
+            profile = new Domain.Entities.BillingProfile { UserId = userId };
+            _db.BillingProfiles.Add(profile);
+        }
+        profile.CompanyName = string.IsNullOrWhiteSpace(dto.CompanyName) ? null : dto.CompanyName.Trim();
+        profile.Nip = NormalizeNip(dto.Nip);
+        profile.AddressLine = string.IsNullOrWhiteSpace(dto.AddressLine) ? null : dto.AddressLine.Trim();
+        profile.PostalCode = string.IsNullOrWhiteSpace(dto.PostalCode) ? null : dto.PostalCode.Trim();
+        profile.City = string.IsNullOrWhiteSpace(dto.City) ? null : dto.City.Trim();
+        profile.Country = string.IsNullOrWhiteSpace(dto.Country) ? "PL" : dto.Country.Trim().ToUpperInvariant();
+
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    private static string? NormalizeNip(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        return digits.Length == 10 ? digits : null;
+    }
 }

@@ -25,6 +25,7 @@ import CertificateDetail from './pages/CertificateDetail';
 import Leaderboard from './pages/Leaderboard';
 import Pricing from './pages/Pricing';
 import Account from './pages/Account';
+import InvoiceDetail from './pages/InvoiceDetail';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -123,6 +124,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Account />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices/:id"
+            element={
+              <ProtectedRoute>
+                <InvoiceDetail />
               </ProtectedRoute>
             }
           />
