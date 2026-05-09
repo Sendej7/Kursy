@@ -36,6 +36,9 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
 .cache/
 .parcel-cache/
 .turbo/

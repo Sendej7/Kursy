@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
-declare const self: DedicatedWorkerGlobalScope;
+// W workerze `self` jest globalnym DedicatedWorkerGlobalScope — alias dla wygodnego typu.
+const ctx = self as unknown as DedicatedWorkerGlobalScope & typeof globalThis;
 
 interface LoadPyodideFn {
   (config?: { indexURL?: string }): Promise<PyodideInstance>;
@@ -42,7 +43,7 @@ interface SubmitMsg {
 
 type InMsg = RunMsg | SubmitMsg;
 
-self.onmessage = async (ev: MessageEvent<InMsg>) => {
+ctx.onmessage = async (ev: MessageEvent<InMsg>) => {
   const { id } = ev.data;
   try {
     const py = await loadPyodide();
@@ -56,10 +57,10 @@ sys.stderr = sys.stdout
       try {
         await py.runPythonAsync(ev.data.code);
         const stdout = String(py.runPython('sys.stdout.getvalue()') ?? '');
-        self.postMessage({ id, ok: true, stdout });
+        ctx.postMessage({ id, ok: true, stdout });
       } catch (err) {
         const stdout = String(py.runPython('sys.stdout.getvalue()') ?? '');
-        self.postMessage({
+        ctx.postMessage({
           id,
           ok: false,
           stdout,
@@ -108,10 +109,10 @@ _json.dumps(results)
         const testsJson = await py.runPythonAsync(testRunner);
         const tests = JSON.parse(String(testsJson));
         const passed = tests.length > 0 && tests.every((t: { passed: boolean }) => t.passed);
-        self.postMessage({ id, ok: true, stdout, tests, passed });
+        ctx.postMessage({ id, ok: true, stdout, tests, passed });
       } catch (err) {
         const stdout = String(py.runPython('sys.stdout.getvalue()') ?? '');
-        self.postMessage({
+        ctx.postMessage({
           id,
           ok: false,
           stdout,
@@ -120,7 +121,7 @@ _json.dumps(results)
       }
     }
   } catch (err) {
-    self.postMessage({
+    ctx.postMessage({
       id,
       ok: false,
       error: err instanceof Error ? err.message : String(err),

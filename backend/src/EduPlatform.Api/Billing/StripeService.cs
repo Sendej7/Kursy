@@ -177,7 +177,7 @@ public class StripeService
         local.StripeSubscriptionId = stripeSub.Id;
         local.StripePriceId = stripeSub.Items?.Data?.FirstOrDefault()?.Price?.Id;
         local.Status = MapStatus(stripeSub.Status);
-        local.CurrentPeriodEnd = stripeSub.Items?.Data?.FirstOrDefault()?.CurrentPeriodEnd;
+        local.CurrentPeriodEnd = stripeSub.CurrentPeriodEnd;
         local.CancelAtPeriodEnd = stripeSub.CancelAtPeriodEnd;
 
         await _db.SaveChangesAsync(ct);

@@ -260,7 +260,7 @@ export default function GenerateCourse() {
                     />
                     <input
                       className="w-full border rounded-md px-2 py-1 text-xs"
-                      placeholder="Topic — co AI ma uczyć (np. „pętla while w Pythonie")"
+                      placeholder={'Topic — co AI ma uczyć (np. „pętla while w Pythonie")'}
                       value={l.topic}
                       onChange={(e) => patchLesson(mi, li, { topic: e.target.value })}
                     />

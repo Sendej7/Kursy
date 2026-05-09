@@ -3,6 +3,9 @@
   <PropertyGroup>
     <RootNamespace>EduPlatform.Infrastructure</RootNamespace>
     <AssemblyName>EduPlatform.Infrastructure</AssemblyName>
+    <!-- System.Security.Cryptography.Xml flagged via transitive deps (Npgsql).
+         Nie używamy XML signatures w aplikacji — ryzyko nieaplikowalne. -->
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
