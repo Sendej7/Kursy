@@ -29,6 +29,16 @@ export default function CourseDetail() {
     },
   });
 
+  const favorite = useMutation({
+    mutationFn: () => api.toggleFavorite(course!.id),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['course', slug] });
+      qc.invalidateQueries({ queryKey: ['favorites', 'mine'] });
+      toast.success(res.favorited ? 'Dodano do ulubionych ❤️' : 'Usunięto z ulubionych');
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Błąd.'),
+  });
+
   if (isLoading) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-500">Ładowanie…</p>;
   if (error || !course) {
     return <p className="max-w-3xl mx-auto px-4 py-10 text-red-600">Nie znaleziono kursu.</p>;
@@ -78,6 +88,19 @@ export default function CourseDetail() {
           <span className="text-sm text-gray-500">
             {course.priceMonthlyPln ? `${course.priceMonthlyPln} zł/mies (Pro)` : 'darmowe'}
           </span>
+          {auth.isAuthenticated() && (
+            <button
+              onClick={() => favorite.mutate()}
+              disabled={favorite.isPending}
+              className="ml-auto px-2 py-1 text-sm hover:bg-gray-100 rounded-md disabled:opacity-50"
+              aria-label={course.isFavorited ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+              title={course.isFavorited ? 'W ulubionych' : 'Zapisz na później'}
+            >
+              <span className={course.isFavorited ? 'text-red-500' : 'text-gray-400'}>
+                {course.isFavorited ? '❤️' : '🤍'}
+              </span>
+            </button>
+          )}
         </div>
         {course.priceMonthlyPln && !course.isEnrolled && (
           <p className="text-xs text-gray-500 mt-2">

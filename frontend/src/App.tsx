@@ -22,6 +22,7 @@ const GitHubCallback = lazy(() => import('./pages/GitHubCallback'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const QuestionDetail = lazy(() => import('./pages/QuestionDetail'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
+const MyFavorites = lazy(() => import('./pages/MyFavorites'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const MyCertificates = lazy(() => import('./pages/MyCertificates'));
 const CertificateDetail = lazy(() => import('./pages/CertificateDetail'));
@@ -174,6 +175,14 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/questions/:id" element={<QuestionDetail />} />
             <Route path="/search" element={<SearchResults />} />
+            <Route
+              path="/my-favorites"
+              element={
+                <ProtectedRoute>
+                  <MyFavorites />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/my-courses"
