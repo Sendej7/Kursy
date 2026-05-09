@@ -7,6 +7,7 @@ export default function NewCourse() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [language, setLanguage] = useState<CourseLanguage>('Python');
+  const [tagsInput, setTagsInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -15,7 +16,11 @@ export default function NewCourse() {
     setError(null);
     setPending(true);
     try {
-      const res = await api.author.createCourse(title, description, language);
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+      const res = await api.author.createCourse(title, description, language, tags);
       navigate(`/author/courses/${res.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');
@@ -59,6 +64,15 @@ export default function NewCourse() {
             <option>CSharp</option>
             <option>Sql</option>
           </select>
+        </label>
+        <label className="block">
+          <span className="text-sm">Tagi (po przecinku, np. „dla-początkujących, podstawy")</span>
+          <input
+            className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="dla-początkujących, podstawy"
+          />
         </label>
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button

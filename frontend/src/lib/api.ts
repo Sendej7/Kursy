@@ -13,6 +13,7 @@ export interface CourseListItem {
   description: string;
   language: CourseLanguage;
   priceMonthlyPln: number | null;
+  tags: string[];
 }
 
 export interface LessonSummary {
@@ -37,8 +38,26 @@ export interface CourseDetail {
   description: string;
   language: CourseLanguage;
   priceMonthlyPln: number | null;
+  tags: string[];
   modules: CourseModule[];
   isEnrolled: boolean;
+}
+
+export interface CertificateMine {
+  code: string;
+  issuedAt: string;
+  courseId: string;
+  courseTitle: string;
+  courseSlug: string;
+}
+
+export interface CertificateDetail {
+  code: string;
+  issuedAt: string;
+  courseId: string;
+  courseTitle: string;
+  courseSlug: string;
+  learnerName: string;
 }
 
 export interface LessonDetail {
@@ -197,13 +216,16 @@ export const api = {
   logout: () => http<void>('/auth/logout', { method: 'POST' }),
 
   // courses
-  listCourses: (params?: { q?: string; language?: CourseLanguage }) => {
+  listCourses: (params?: { q?: string; language?: CourseLanguage; tag?: string }) => {
     const search = new URLSearchParams();
     if (params?.q) search.set('q', params.q);
     if (params?.language) search.set('language', params.language);
+    if (params?.tag) search.set('tag', params.tag);
     const qs = search.toString();
     return http<CourseListItem[]>(`/courses${qs ? `?${qs}` : ''}`, { auth: false });
   },
+  listCourseTags: () =>
+    http<{ tag: string; count: number }[]>('/courses/tags', { auth: false }),
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
   enrollById: (id: string) => http<void>(`/courses/${id}/enroll`, { method: 'POST' }),
   enrollByCode: (accessCode: string) =>
@@ -215,7 +237,7 @@ export const api = {
   // lessons
   getLesson: (id: string) => http<LessonDetail>(`/lessons/${id}`),
   completeLesson: (id: string, timeSpentSeconds: number) =>
-    http<void>(`/lessons/${id}/complete`, {
+    http<{ certificateIssued: boolean; certificateCode: string | null }>(`/lessons/${id}/complete`, {
       method: 'POST',
       body: JSON.stringify({ timeSpentSeconds }),
     }),
@@ -250,10 +272,10 @@ export const api = {
   // author
   author: {
     listMyCourses: () => http<AuthorCourseRow[]>('/author/courses'),
-    createCourse: (title: string, description: string, language: CourseLanguage) =>
+    createCourse: (title: string, description: string, language: CourseLanguage, tags?: string[]) =>
       http<{ id: string; slug: string }>('/author/courses', {
         method: 'POST',
-        body: JSON.stringify({ title, description, language }),
+        body: JSON.stringify({ title, description, language, tags }),
       }),
     updateCourse: (
       id: string,
@@ -263,6 +285,7 @@ export const api = {
         language: CourseLanguage;
         visibility: CourseVisibility;
         priceMonthlyPln: number | null;
+        tags?: string[];
       },
     ) =>
       http<void>(`/author/courses/${id}`, {
@@ -370,6 +393,11 @@ export const api = {
         body: JSON.stringify(payload),
       }),
   },
+
+  // certificates
+  myCertificates: () => http<CertificateMine[]>('/certificates/mine'),
+  getCertificate: (code: string) =>
+    http<CertificateDetail>(`/certificates/${code}`, { auth: false }),
 
   // me
   myCourses: () =>

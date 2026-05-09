@@ -22,6 +22,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddAiService(builder.Configuration);
 builder.Services.AddSingleton<ICodeRunner, InMemoryCodeRunner>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<CertificateService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<JwtTokenService>();

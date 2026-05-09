@@ -36,6 +36,7 @@ public static class DatabaseSeeder
             Visibility = CourseVisibility.Public,
             PriceMonthlyPln = null,
             AuthorId = demoAuthor.Id,
+            Tags = new List<string> { "podstawy", "dla-początkujących", "python" },
         };
 
         var module1 = new Module

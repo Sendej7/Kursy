@@ -13,11 +13,13 @@ public class LessonsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly CertificateService _certificates;
 
-    public LessonsController(AppDbContext db, ICurrentUser currentUser)
+    public LessonsController(AppDbContext db, ICurrentUser currentUser, CertificateService certificates)
     {
         _db = db;
         _currentUser = currentUser;
+        _certificates = certificates;
     }
 
     public record LessonDetailDto(
@@ -133,6 +135,18 @@ public class LessonsController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
-        return NoContent();
+
+        var lessonForCourse = await _db.Lessons
+            .Where(l => l.Id == id)
+            .Select(l => new { l.Module!.CourseId })
+            .FirstOrDefaultAsync(ct);
+
+        Certificate? issued = null;
+        if (lessonForCourse is not null)
+        {
+            issued = await _certificates.IssueIfEligibleAsync(userId, lessonForCourse.CourseId, ct);
+        }
+
+        return Ok(new { certificateIssued = issued is not null, certificateCode = issued?.Code });
     }
 }

@@ -29,6 +29,19 @@ export default function CourseDetail() {
         <p className="text-xs text-gray-500 uppercase tracking-wide">{course.language}</p>
         <h1 className="text-3xl font-bold mt-1">{course.title}</h1>
         <p className="text-gray-700 mt-2">{course.description}</p>
+        {course.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-3">
+            {course.tags.map((t) => (
+              <Link
+                key={t}
+                to={`/courses?tag=${encodeURIComponent(t)}`}
+                className="text-xs px-2 py-0.5 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                #{t}
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-3 mt-4">
           {auth.isAuthenticated() ? (
             course.isEnrolled ? (

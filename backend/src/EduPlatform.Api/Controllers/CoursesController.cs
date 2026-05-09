@@ -21,7 +21,7 @@ public class CoursesController : ControllerBase
         _currentUser = currentUser;
     }
 
-    public record CourseListItem(Guid Id, string Title, string Slug, string Description, CourseLanguage Language, decimal? PriceMonthlyPln);
+    public record CourseListItem(Guid Id, string Title, string Slug, string Description, CourseLanguage Language, decimal? PriceMonthlyPln, IReadOnlyList<string> Tags);
     public record CourseDetailDto(
         Guid Id,
         string Title,
@@ -29,6 +29,7 @@ public class CoursesController : ControllerBase
         string Description,
         CourseLanguage Language,
         decimal? PriceMonthlyPln,
+        IReadOnlyList<string> Tags,
         IReadOnlyList<ModuleDto> Modules,
         bool IsEnrolled);
     public record ModuleDto(Guid Id, string Title, int Order, IReadOnlyList<LessonSummaryDto> Lessons);
@@ -38,6 +39,7 @@ public class CoursesController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<CourseListItem>>> List(
         [FromQuery] string? q,
         [FromQuery] CourseLanguage? language,
+        [FromQuery] string? tag,
         CancellationToken ct = default)
     {
         var query = _db.Courses.Where(c => c.Visibility == CourseVisibility.Public);
@@ -56,9 +58,34 @@ public class CoursesController : ControllerBase
 
         var courses = await query
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new CourseListItem(c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln))
+            .Select(c => new CourseListItem(c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln, c.Tags))
             .ToListAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var t = tag.Trim().ToLowerInvariant();
+            courses = courses.Where(c => c.Tags.Any(tg => tg.ToLowerInvariant() == t)).ToList();
+        }
         return Ok(courses);
+    }
+
+    [HttpGet("tags")]
+    public async Task<IActionResult> Tags(CancellationToken ct)
+    {
+        var allTags = await _db.Courses
+            .Where(c => c.Visibility == CourseVisibility.Public)
+            .Select(c => c.Tags)
+            .ToListAsync(ct);
+
+        var grouped = allTags
+            .SelectMany(t => t)
+            .GroupBy(t => t.Trim().ToLowerInvariant())
+            .Where(g => !string.IsNullOrEmpty(g.Key))
+            .Select(g => new { tag = g.First().Trim(), count = g.Count() })
+            .OrderByDescending(g => g.count)
+            .Take(50)
+            .ToList();
+        return Ok(grouped);
     }
 
     [HttpGet("{slug}")]
@@ -91,6 +118,7 @@ public class CoursesController : ControllerBase
             course.Description,
             course.Language,
             course.PriceMonthlyPln,
+            course.Tags,
             course.Modules.Select(m => new ModuleDto(
                 m.Id,
                 m.Title,

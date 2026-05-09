@@ -14,6 +14,16 @@ public class CourseConfiguration : IEntityTypeConfiguration<Course>
         builder.Property(c => c.Description).HasMaxLength(4096);
         builder.HasIndex(c => c.Slug).IsUnique();
 
+        builder.Property(c => c.Tags)
+               .HasColumnType("jsonb")
+               .HasConversion(
+                   v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                   v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>(),
+                   new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+                       (a, b) => a!.SequenceEqual(b!),
+                       v => v.Aggregate(0, (h, s) => HashCode.Combine(h, s.GetHashCode())),
+                       v => v.ToList()));
+
         builder.HasOne(c => c.Author)
                .WithMany(u => u.AuthoredCourses)
                .HasForeignKey(c => c.AuthorId)

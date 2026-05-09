@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<AiInteraction> AiInteractions => Set<AiInteraction>();
     public DbSet<CourseEnrollment> CourseEnrollments => Set<CourseEnrollment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Certificate> Certificates => Set<Certificate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
