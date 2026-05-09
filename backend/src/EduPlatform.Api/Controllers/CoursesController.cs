@@ -38,7 +38,8 @@ public class CoursesController : ControllerBase
         IReadOnlyList<ModuleDto> Modules,
         bool IsEnrolled,
         double AverageRating,
-        int ReviewCount);
+        int ReviewCount,
+        bool IsFavorited);
     public record ModuleDto(Guid Id, string Title, int Order, IReadOnlyList<LessonSummaryDto> Lessons);
     public record LessonSummaryDto(Guid Id, string Title, int Order, LessonType Type, bool IsCompleted);
 
@@ -110,10 +111,13 @@ public class CoursesController : ControllerBase
 
         HashSet<Guid> completedLessons = new();
         bool enrolled = false;
+        bool favorited = false;
         if (_currentUser.Id is { } userId)
         {
             enrolled = await _db.CourseEnrollments
                 .AnyAsync(e => e.UserId == userId && e.CourseId == course.Id, ct);
+            favorited = await _db.CourseFavorites
+                .AnyAsync(f => f.UserId == userId && f.CourseId == course.Id, ct);
             completedLessons = (await _db.LessonProgresses
                 .Where(p => p.UserId == userId && p.Completed && p.Lesson!.Module!.CourseId == course.Id)
                 .Select(p => p.LessonId)
@@ -143,10 +147,56 @@ public class CoursesController : ControllerBase
                     l.Id, l.Title, l.Order, l.Type, completedLessons.Contains(l.Id))).ToList())).ToList(),
             enrolled,
             reviewStats?.Avg ?? 0d,
-            reviewStats?.Count ?? 0));
+            reviewStats?.Count ?? 0,
+            favorited));
     }
 
     public record EnrollByCodeDto(string AccessCode);
+
+    [Authorize]
+    [HttpGet("favorites/mine")]
+    public async Task<IActionResult> MyFavorites(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var favs = await _db.CourseFavorites
+            .Where(f => f.UserId == userId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => new
+            {
+                f.CourseId,
+                f.Course!.Slug,
+                f.Course.Title,
+                f.Course.Description,
+                f.Course.Language,
+                f.Course.PriceMonthlyPln,
+                f.Course.Tags,
+                averageRating = _db.CourseReviews.Where(r => r.CourseId == f.CourseId).Average(r => (double?)r.Rating) ?? 0d,
+                reviewCount = _db.CourseReviews.Count(r => r.CourseId == f.CourseId),
+            })
+            .ToListAsync(ct);
+        return Ok(favs);
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/favorite")]
+    public async Task<IActionResult> ToggleFavorite(Guid id, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var courseExists = await _db.Courses.AnyAsync(c => c.Id == id, ct);
+        if (!courseExists) return NotFound();
+
+        var existing = await _db.CourseFavorites
+            .FirstOrDefaultAsync(f => f.UserId == userId && f.CourseId == id, ct);
+        if (existing is null)
+        {
+            _db.CourseFavorites.Add(new CourseFavorite { UserId = userId, CourseId = id });
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { favorited = true });
+        }
+        _db.CourseFavorites.Remove(existing);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { favorited = false });
+    }
 
     [Authorize]
     [HttpPost("{id:guid}/enroll")]

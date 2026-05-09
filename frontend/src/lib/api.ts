@@ -45,6 +45,19 @@ export interface CourseDetail {
   isEnrolled: boolean;
   averageRating: number;
   reviewCount: number;
+  isFavorited: boolean;
+}
+
+export interface FavoriteCourse {
+  courseId: string;
+  slug: string;
+  title: string;
+  description: string;
+  language: CourseLanguage;
+  priceMonthlyPln: number | null;
+  tags: string[];
+  averageRating: number;
+  reviewCount: number;
 }
 
 export interface CourseReview {
@@ -443,6 +456,10 @@ export const api = {
   listCourseTags: () =>
     http<{ tag: string; count: number }[]>('/courses/tags', { auth: false }),
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
+
+  toggleFavorite: (courseId: string) =>
+    http<{ favorited: boolean }>(`/courses/${courseId}/favorite`, { method: 'POST' }),
+  myFavorites: () => http<FavoriteCourse[]>('/courses/favorites/mine'),
 
   reviews: {
     list: (courseId: string) => http<CourseReviewsResponse>(`/courses/${courseId}/reviews`, { auth: false }),

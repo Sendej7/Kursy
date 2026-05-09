@@ -125,6 +125,10 @@ export default function Account() {
             Moje kursy
           </Link>
           {' · '}
+          <Link to="/my-favorites" className="underline">
+            Ulubione
+          </Link>
+          {' · '}
           <Link to="/my-certificates" className="underline">
             Moje certyfikaty
           </Link>
