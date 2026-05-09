@@ -110,6 +110,25 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0,
             }));
+
+    // AI: drogie, partycjonowane po userId (a nie IP), żeby NAT-owani userzy nie kradli
+    // sobie limitu nawzajem. Dla niezalogowanych — IP fallback. 30 wywołań / 15 min.
+    options.AddPolicy("ai", httpCtx =>
+    {
+        var userId = httpCtx.User?.FindFirst("sub")?.Value
+                    ?? httpCtx.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? httpCtx.Connection.RemoteIpAddress?.ToString()
+                    ?? "anon";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: userId,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(15),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            });
+    });
 });
 
 builder.Services.AddHealthChecks()

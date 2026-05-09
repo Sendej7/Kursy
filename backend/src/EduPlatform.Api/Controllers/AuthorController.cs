@@ -5,6 +5,7 @@ using EduPlatform.Domain.Enums;
 using EduPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduPlatform.Api.Controllers;
@@ -167,6 +168,7 @@ public class AuthorController : ControllerBase
     }
 
     [HttpPost("generate-lesson")]
+    [EnableRateLimiting("ai")]
     public async Task<IActionResult> GenerateLesson([FromBody] GenerateLessonRequest request, CancellationToken ct)
     {
         var generated = await _ai.GenerateLessonAsync(request, ct);
@@ -174,6 +176,7 @@ public class AuthorController : ControllerBase
     }
 
     [HttpPost("generate-from-text")]
+    [EnableRateLimiting("ai")]
     public async Task<IActionResult> GenerateFromText([FromBody] GenerateFromTextDto dto, CancellationToken ct)
     {
         var snippet = dto.SourceText.Length > 4000 ? dto.SourceText[..4000] : dto.SourceText;
@@ -216,6 +219,7 @@ public class AuthorController : ControllerBase
     }
 
     [HttpPost("outline")]
+    [EnableRateLimiting("ai")]
     public async Task<IActionResult> ProposeOutline([FromBody] CourseOutlineDto dto, CancellationToken ct)
     {
         var outline = await _ai.ProposeCourseOutlineAsync(
