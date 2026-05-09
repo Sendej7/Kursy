@@ -14,6 +14,8 @@ export interface CourseListItem {
   language: CourseLanguage;
   priceMonthlyPln: number | null;
   tags: string[];
+  averageRating: number;
+  reviewCount: number;
 }
 
 export interface LessonSummary {
@@ -41,6 +43,24 @@ export interface CourseDetail {
   tags: string[];
   modules: CourseModule[];
   isEnrolled: boolean;
+  averageRating: number;
+  reviewCount: number;
+}
+
+export interface CourseReview {
+  id: string;
+  userId: string;
+  userDisplayName: string;
+  userAvatarUrl: string | null;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CourseReviewsResponse {
+  summary: { count: number; average: number };
+  reviews: CourseReview[];
 }
 
 export interface CertificateMine {
@@ -265,6 +285,21 @@ export const api = {
   listCourseTags: () =>
     http<{ tag: string; count: number }[]>('/courses/tags', { auth: false }),
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
+
+  reviews: {
+    list: (courseId: string) => http<CourseReviewsResponse>(`/courses/${courseId}/reviews`, { auth: false }),
+    upsert: (courseId: string, payload: { rating: number; comment?: string | null }) =>
+      http<void>(`/courses/${courseId}/reviews`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    deleteMine: (courseId: string) =>
+      http<void>(`/courses/${courseId}/reviews/me`, { method: 'DELETE' }),
+    mine: (courseId: string) =>
+      http<{ rating: number; comment: string | null; updatedAt: string } | null>(
+        `/courses/${courseId}/reviews/me`,
+      ),
+  },
   enrollById: (id: string) => http<void>(`/courses/${id}/enroll`, { method: 'POST' }),
   enrollByCode: (accessCode: string) =>
     http<{ id: string; slug: string }>('/courses/enroll-by-code', {

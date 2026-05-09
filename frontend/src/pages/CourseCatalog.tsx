@@ -84,6 +84,11 @@ export default function CourseCatalog() {
           >
             <p className="text-xs uppercase tracking-wide text-gray-500">{c.language}</p>
             <h2 className="font-semibold text-lg mt-1">{c.title}</h2>
+            {c.reviewCount > 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                ★ {c.averageRating.toFixed(1)} <span className="text-gray-500">({c.reviewCount})</span>
+              </p>
+            )}
             <p className="text-sm text-gray-600 mt-1 line-clamp-3 flex-1">{c.description}</p>
             {c.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-3">

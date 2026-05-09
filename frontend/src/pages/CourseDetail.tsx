@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import CourseReviews from '@/components/CourseReviews';
 
 export default function CourseDetail() {
   const { slug = '' } = useParams();
@@ -116,6 +117,8 @@ export default function CourseDetail() {
           </div>
         ))}
       </div>
+
+      <CourseReviews courseId={course.id} isEnrolled={course.isEnrolled} />
     </section>
   );
 }
