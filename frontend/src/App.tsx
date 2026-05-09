@@ -8,6 +8,7 @@ import StreakPill from './components/StreakPill';
 import Toaster from './components/Toaster';
 import EmailVerifyBanner from './components/EmailVerifyBanner';
 import NotificationsBell from './components/NotificationsBell';
+import SearchBar from './components/SearchBar';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -20,6 +21,7 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const GitHubCallback = lazy(() => import('./pages/GitHubCallback'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const QuestionDetail = lazy(() => import('./pages/QuestionDetail'));
+const SearchResults = lazy(() => import('./pages/SearchResults'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const MyCertificates = lazy(() => import('./pages/MyCertificates'));
 const CertificateDetail = lazy(() => import('./pages/CertificateDetail'));
@@ -73,6 +75,7 @@ function Header() {
           Kursy
         </Link>
         <nav className="flex items-center gap-4 text-sm">
+          <SearchBar />
           <Link to="/courses" className="hover:underline">
             Katalog
           </Link>
@@ -170,6 +173,7 @@ export default function App() {
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/questions/:id" element={<QuestionDetail />} />
+            <Route path="/search" element={<SearchResults />} />
 
             <Route
               path="/my-courses"
