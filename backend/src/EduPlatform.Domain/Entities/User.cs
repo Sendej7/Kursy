@@ -16,6 +16,10 @@ public class User : Entity
     /// <summary>True dopiero po pierwszym poprawnym potwierdzeniu kodu (Setup → Enable).</summary>
     public bool TwoFactorEnabled { get; set; }
 
+    /// <summary>JSON array BCrypt-hashed backup codes (każdy 8-znakowy, jednorazowy).
+    /// Null = brak; każde użycie usuwa hash z tablicy.</summary>
+    public string? BackupCodesHashJson { get; set; }
+
     /// <summary>RODO: konto zanonimizowane na żądanie usera. Zachowujemy entity dla integralności
     /// referencji (kursy/recenzje/odpowiedzi), ale czyścimy PII (email/displayName/avatar/secrets).</summary>
     public bool IsDeleted { get; set; }

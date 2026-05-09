@@ -255,9 +255,19 @@ export const api = {
     setup: () =>
       http<{ secret: string; otpAuthUri: string }>('/auth/2fa/setup', { method: 'POST' }),
     enable: (code: string) =>
-      http<void>('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
+      http<{ backupCodes: string[] }>('/auth/2fa/enable', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
     disable: (code: string) =>
       http<void>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) }),
+    regenerateBackupCodes: (code: string) =>
+      http<{ backupCodes: string[] }>('/auth/2fa/backup-codes', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
+    backupCodesRemaining: () =>
+      http<{ remaining: number }>('/auth/2fa/backup-codes/remaining'),
   },
 
   logout: () => http<void>('/auth/logout', { method: 'POST' }),
