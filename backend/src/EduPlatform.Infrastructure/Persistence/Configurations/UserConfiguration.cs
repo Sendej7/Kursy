@@ -13,5 +13,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.DisplayName).IsRequired().HasMaxLength(128);
         builder.Property(u => u.PasswordHash).IsRequired();
         builder.HasIndex(u => u.Email).IsUnique();
+        builder.Property(u => u.GoogleId).HasMaxLength(64);
+        builder.HasIndex(u => u.GoogleId).IsUnique().HasFilter("\"GoogleId\" IS NOT NULL");
+        builder.Property(u => u.AvatarUrl).HasMaxLength(512);
     }
 }

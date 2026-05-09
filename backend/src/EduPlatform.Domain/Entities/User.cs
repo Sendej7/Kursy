@@ -6,7 +6,11 @@ public class User : Entity
 {
     public required string Email { get; set; }
     public required string DisplayName { get; set; }
+    /// <summary>Hash hasła. Pusty string dla kont założonych przez Google OAuth.</summary>
     public required string PasswordHash { get; set; }
+    /// <summary>Google sub (stable user id). Null dla kont email/hasło.</summary>
+    public string? GoogleId { get; set; }
+    public string? AvatarUrl { get; set; }
     public UserRole Role { get; set; } = UserRole.Student;
     public DateTime? SubscriptionUntil { get; set; }
 

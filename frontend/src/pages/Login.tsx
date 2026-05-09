@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const target = location.state?.from ?? '/my-courses';
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -21,7 +24,7 @@ export default function Login() {
       const res = await api.login(email, password);
       setSession(res.token, res.expiresAt, res.refreshToken, res.user);
       toast.success(`Cześć, ${res.user.displayName}!`);
-      navigate(location.state?.from ?? '/my-courses', { replace: true });
+      navigate(target, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');
     } finally {
@@ -29,9 +32,34 @@ export default function Login() {
     }
   }
 
+  const onGoogle = useCallback(
+    async (idToken: string) => {
+      try {
+        const res = await api.googleLogin(idToken);
+        setSession(res.token, res.expiresAt, res.refreshToken, res.user);
+        toast.success(`Cześć, ${res.user.displayName}!`);
+        navigate(target, { replace: true });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Logowanie Google nie powiodło się.');
+      }
+    },
+    [setSession, navigate, target],
+  );
+
   return (
     <section className="max-w-sm mx-auto px-4 py-16">
       <h1 className="text-2xl font-bold mb-6">Zaloguj się</h1>
+
+      <div className="mb-4 flex justify-center">
+        <GoogleSignInButton onCredential={onGoogle} />
+      </div>
+
+      <div className="flex items-center gap-3 my-4 text-xs text-gray-500">
+        <span className="flex-1 border-t" />
+        <span>lub</span>
+        <span className="flex-1 border-t" />
+      </div>
+
       <form onSubmit={submit} className="space-y-3">
         <label className="block">
           <span className="text-sm">Email</span>
@@ -68,6 +96,10 @@ export default function Login() {
         Nie masz konta?{' '}
         <Link to="/register" className="underline">
           Zarejestruj się
+        </Link>
+        {' · '}
+        <Link to="/forgot-password" className="underline">
+          Zapomniałeś hasła?
         </Link>
       </p>
     </section>

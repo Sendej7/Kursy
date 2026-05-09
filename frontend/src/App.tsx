@@ -5,6 +5,8 @@ import CourseDetail from './pages/CourseDetail';
 import LessonView from './pages/LessonView';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AuthorDashboard from './pages/author/Dashboard';
 import NewCourse from './pages/author/NewCourse';
 import CourseEditor from './pages/author/CourseEditor';
@@ -140,6 +142,8 @@ export default function App() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route
             path="/my-courses"
