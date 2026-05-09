@@ -300,6 +300,60 @@ export const api = {
   resendVerification: () =>
     http<{ ok: boolean }>('/auth/resend-verification', { method: 'POST' }),
 
+  qa: {
+    listForLesson: (lessonId: string) =>
+      http<
+        {
+          id: string;
+          title: string;
+          authorDisplayName: string;
+          authorAvatarUrl: string | null;
+          createdAt: string;
+          answerCount: number;
+          isResolved: boolean;
+        }[]
+      >(`/lessons/${lessonId}/questions`, { auth: false }),
+    createQuestion: (lessonId: string, payload: { title: string; body?: string | null }) =>
+      http<{ id: string }>(`/lessons/${lessonId}/questions`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    get: (questionId: string) =>
+      http<{
+        id: string;
+        lessonId: string;
+        authorId: string;
+        authorDisplayName: string;
+        authorAvatarUrl: string | null;
+        title: string;
+        body: string | null;
+        createdAt: string;
+        acceptedAnswerId: string | null;
+        answers: {
+          id: string;
+          authorId: string;
+          authorDisplayName: string;
+          authorAvatarUrl: string | null;
+          body: string;
+          upvotes: number;
+          votedByMe: boolean;
+          isAccepted: boolean;
+          createdAt: string;
+        }[];
+      }>(`/questions/${questionId}`, { auth: false }),
+    answer: (questionId: string, body: string) =>
+      http<{ id: string }>(`/questions/${questionId}/answers`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }),
+    accept: (questionId: string, answerId: string) =>
+      http<void>(`/questions/${questionId}/accept-answer/${answerId}`, { method: 'POST' }),
+    upvote: (answerId: string) =>
+      http<{ upvotes: number; votedByMe: boolean }>(`/answers/${answerId}/upvote`, {
+        method: 'POST',
+      }),
+  },
+
   notifications: {
     list: (take = 20) =>
       http<
