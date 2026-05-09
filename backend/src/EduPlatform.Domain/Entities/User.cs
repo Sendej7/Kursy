@@ -27,4 +27,6 @@ public class User : Entity
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
     public Subscription? Subscription { get; set; }
+    public BillingProfile? BillingProfile { get; set; }
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

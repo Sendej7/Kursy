@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import BillingProfileForm from '@/components/BillingProfileForm';
 
 export default function Account() {
   const auth = useAuth();
@@ -91,6 +92,13 @@ export default function Account() {
         )}
       </div>
 
+      <div className="border rounded-lg bg-white p-5">
+        <h2 className="font-semibold mb-2">Dane do faktury</h2>
+        <BillingProfileForm />
+      </div>
+
+      <Invoices />
+
       <div className="text-sm text-gray-600">
         <p>
           <Link to="/my-courses" className="underline">
@@ -103,6 +111,41 @@ export default function Account() {
         </p>
       </div>
     </section>
+  );
+}
+
+function Invoices() {
+  const { data } = useQuery({
+    queryKey: ['invoices', 'mine'],
+    queryFn: () => api.invoices.mine(),
+  });
+
+  if (!data || data.length === 0) return null;
+
+  return (
+    <div className="border rounded-lg bg-white p-5">
+      <h2 className="font-semibold mb-2">Faktury</h2>
+      <ul className="divide-y">
+        {data.map((i) => (
+          <li key={i.id} className="py-2 flex items-center justify-between">
+            <span className="text-sm">
+              <code className="bg-gray-100 px-1 rounded">{i.number}</code>
+              <span className="text-gray-500 ml-2">
+                {new Date(i.issuedAt).toLocaleDateString('pl-PL')}
+              </span>
+            </span>
+            <span className="text-sm flex items-center gap-3">
+              <span>
+                {i.grossAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2 })} {i.currency}
+              </span>
+              <Link to={`/invoices/${i.id}`} className="text-xs underline">
+                Pobierz
+              </Link>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

@@ -418,6 +418,60 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ returnUrl }),
       }),
+    getProfile: () =>
+      http<{
+        companyName: string | null;
+        nip: string | null;
+        addressLine: string | null;
+        postalCode: string | null;
+        city: string | null;
+        country: string;
+      }>('/billing/profile'),
+    updateProfile: (payload: {
+      companyName?: string | null;
+      nip?: string | null;
+      addressLine?: string | null;
+      postalCode?: string | null;
+      city?: string | null;
+      country?: string;
+    }) =>
+      http<void>('/billing/profile', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  invoices: {
+    mine: () =>
+      http<
+        {
+          id: string;
+          number: string;
+          issuedAt: string;
+          grossAmount: number;
+          currency: string;
+          description: string;
+        }[]
+      >('/invoices/mine'),
+    get: (id: string) =>
+      http<{
+        id: string;
+        number: string;
+        issuedAt: string;
+        paidAt: string | null;
+        buyerName: string;
+        buyerNip: string | null;
+        buyerAddressLine: string | null;
+        buyerPostalCode: string | null;
+        buyerCity: string | null;
+        buyerCountry: string;
+        description: string;
+        netAmount: number;
+        vatRatePct: number;
+        vatAmount: number;
+        grossAmount: number;
+        currency: string;
+      }>(`/invoices/${id}`),
   },
 
   // certificates

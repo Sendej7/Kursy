@@ -31,6 +31,7 @@ builder.Services.AddScoped<CertificateService>();
 builder.Services.AddScoped<GamificationService>();
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
+builder.Services.AddScoped<InvoiceService>();
 builder.Services.AddScoped<StripeService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
