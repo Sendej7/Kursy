@@ -218,6 +218,74 @@ public class AuthorController : ControllerBase
         return Ok(new { text, length = text.Length, fileName = file.FileName });
     }
 
+    [HttpPost("extract-pptx")]
+    [RequestSizeLimit(40 * 1024 * 1024)] // 40MB — PPTX bywa większy od PDF (obrazki)
+    public async Task<IActionResult> ExtractPptx([FromForm] IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) return BadRequest(new { error = "Brak pliku." });
+        if (!file.FileName.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { error = "Tylko pliki PPTX (PowerPoint 2007+)." });
+        }
+
+        await using var stream = file.OpenReadStream();
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            using var pres = DocumentFormat.OpenXml.Packaging.PresentationDocument.Open(ms, isEditable: false);
+            var slidePart = pres.PresentationPart;
+            if (slidePart?.Presentation?.SlideIdList is { } slideIds)
+            {
+                int slideIdx = 0;
+                foreach (var slideId in slideIds.Elements<DocumentFormat.OpenXml.Presentation.SlideId>())
+                {
+                    slideIdx++;
+                    if (slideId.RelationshipId is not { } relId) continue;
+                    var slide = (DocumentFormat.OpenXml.Packaging.SlidePart)slidePart.GetPartById(relId.Value!);
+
+                    sb.AppendLine($"# Slajd {slideIdx}");
+                    if (slide.Slide is { } slideRoot)
+                    {
+                        foreach (var t in slideRoot.Descendants<DocumentFormat.OpenXml.Drawing.Text>())
+                        {
+                            if (!string.IsNullOrWhiteSpace(t.Text))
+                            {
+                                sb.AppendLine(t.Text);
+                            }
+                        }
+                    }
+
+                    // Notatki prelegenta — czesto wartościowe dla AI
+                    if (slide.NotesSlidePart?.NotesSlide is { } notes)
+                    {
+                        var noteTexts = notes
+                            .Descendants<DocumentFormat.OpenXml.Drawing.Text>()
+                            .Select(x => x.Text)
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .ToList();
+                        if (noteTexts.Count > 0)
+                        {
+                            sb.AppendLine("## Notatki prelegenta");
+                            foreach (var n in noteTexts) sb.AppendLine(n);
+                        }
+                    }
+                    sb.AppendLine();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = $"Nie mogę odczytać PPTX: {ex.Message}" });
+        }
+
+        var text = sb.ToString();
+        return Ok(new { text, length = text.Length, fileName = file.FileName });
+    }
+
     [HttpPost("outline")]
     [EnableRateLimiting("ai")]
     public async Task<IActionResult> ProposeOutline([FromBody] CourseOutlineDto dto, CancellationToken ct)
