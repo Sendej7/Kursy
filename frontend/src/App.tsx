@@ -48,6 +48,7 @@ const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminOrganizations = lazy(() => import('./pages/admin/Organizations'));
 const AdminPromoCodes = lazy(() => import('./pages/admin/PromoCodes'));
+const AdminMetrics = lazy(() => import('./pages/admin/Metrics'));
 
 function PageFallback() {
   return (
@@ -319,6 +320,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['Admin']}>
                   <AdminPromoCodes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/metrics"
+              element={
+                <ProtectedRoute roles={['Admin']}>
+                  <AdminMetrics />
                 </ProtectedRoute>
               }
             />
