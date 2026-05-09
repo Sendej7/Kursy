@@ -8,6 +8,8 @@ public class User : Entity
     public required string DisplayName { get; set; }
     /// <summary>Hash hasła. Pusty string dla kont założonych przez Google OAuth.</summary>
     public required string PasswordHash { get; set; }
+    /// <summary>True gdy user kliknął w link weryfikacyjny w mailu (lub założył konto przez OAuth).</summary>
+    public bool EmailConfirmed { get; set; }
     /// <summary>Google sub (stable user id). Null dla kont email/hasło.</summary>
     public string? GoogleId { get; set; }
     /// <summary>GitHub user id (stable). Null dla kont email/hasło / Google.</summary>

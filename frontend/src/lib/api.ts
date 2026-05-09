@@ -243,6 +243,16 @@ export const api = {
       auth: false,
     }),
 
+  verifyEmail: (code: string) =>
+    http<{ ok: boolean }>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+      auth: false,
+    }),
+
+  resendVerification: () =>
+    http<{ ok: boolean }>('/auth/resend-verification', { method: 'POST' }),
+
   // courses
   listCourses: (params?: { q?: string; language?: CourseLanguage; tag?: string }) => {
     const search = new URLSearchParams();
