@@ -401,6 +401,25 @@ export const api = {
       }),
   },
 
+  // billing
+  billing: {
+    status: () =>
+      http<{
+        configured: boolean;
+        hasSubscription: boolean;
+        isActive: boolean;
+        status: string;
+        currentPeriodEnd: string | null;
+        cancelAtPeriodEnd: boolean;
+      }>('/billing/status'),
+    checkout: () => http<{ url: string }>('/billing/checkout', { method: 'POST' }),
+    portal: (returnUrl: string) =>
+      http<{ url: string }>('/billing/portal', {
+        method: 'POST',
+        body: JSON.stringify({ returnUrl }),
+      }),
+  },
+
   // certificates
   myCertificates: () => http<CertificateMine[]>('/certificates/mine'),
   getCertificate: (code: string) =>

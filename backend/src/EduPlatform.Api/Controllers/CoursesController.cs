@@ -142,6 +142,15 @@ public class CoursesController : ControllerBase
             return BadRequest(new { error = "Kurs nie jest publiczny — wymagany kod dostępu." });
         }
 
+        if (course.PriceMonthlyPln is not null and > 0)
+        {
+            var sub = await _db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+            if (sub is null || !sub.IsActive)
+            {
+                return StatusCode(402, new { error = "Ten kurs wymaga aktywnej subskrypcji.", needsSubscription = true });
+            }
+        }
+
         var exists = await _db.CourseEnrollments.AnyAsync(e => e.UserId == userId && e.CourseId == id, ct);
         if (exists) return NoContent();
 

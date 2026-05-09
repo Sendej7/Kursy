@@ -26,4 +26,5 @@ public class User : Entity
     public ICollection<AiInteraction> AiInteractions { get; set; } = new List<AiInteraction>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
+    public Subscription? Subscription { get; set; }
 }

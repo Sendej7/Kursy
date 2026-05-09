@@ -23,6 +23,8 @@ import MyCourses from './pages/MyCourses';
 import MyCertificates from './pages/MyCertificates';
 import CertificateDetail from './pages/CertificateDetail';
 import Leaderboard from './pages/Leaderboard';
+import Pricing from './pages/Pricing';
+import Account from './pages/Account';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -54,6 +56,9 @@ function Header() {
           <Link to="/leaderboard" className="hover:underline">
             Top XP
           </Link>
+          <Link to="/pricing" className="hover:underline">
+            Cennik
+          </Link>
           {auth.isAuthenticated() && (
             <>
               <Link to="/my-courses" className="hover:underline">
@@ -77,7 +82,9 @@ function Header() {
           {auth.isAuthenticated() ? (
             <>
               <StreakPill />
-              <span className="text-gray-500">{auth.user?.displayName}</span>
+              <Link to="/account" className="text-gray-500 hover:underline">
+                {auth.user?.displayName}
+              </Link>
               <button onClick={logout} className="text-gray-500 hover:underline">
                 Wyloguj
               </button>
@@ -110,6 +117,15 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/courses" element={<CourseCatalog />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <Account />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/courses/:slug" element={<CourseDetail />} />
           <Route path="/courses/:slug/lessons/:lessonId" element={<LessonView />} />
 
