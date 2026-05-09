@@ -49,6 +49,7 @@ const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminOrganizations = lazy(() => import('./pages/admin/Organizations'));
 const AdminPromoCodes = lazy(() => import('./pages/admin/PromoCodes'));
 const AdminMetrics = lazy(() => import('./pages/admin/Metrics'));
+const EmbedLesson = lazy(() => import('./pages/EmbedLesson'));
 
 function PageFallback() {
   return (
@@ -143,6 +144,20 @@ function Header() {
 }
 
 export default function App() {
+  // Embed mode (iframe na cudzych blogach) — bez Header/Footer/Banner/Toaster/CookieBanner.
+  // Wykrywany przez prefix /embed/ w URL.
+  const isEmbed = typeof window !== 'undefined' && window.location.pathname.startsWith('/embed/');
+
+  if (isEmbed) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/embed/lessons/:id" element={<EmbedLesson />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   return (
     <div className="min-h-full flex flex-col">
       <Header />
