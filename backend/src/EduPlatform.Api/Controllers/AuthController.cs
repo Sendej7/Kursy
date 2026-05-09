@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using EduPlatform.Api.Auth;
+using EduPlatform.Api.Email;
 using EduPlatform.Api.Services;
 using EduPlatform.Domain.Entities;
 using EduPlatform.Domain.Enums;
@@ -25,6 +26,8 @@ public class AuthController : ControllerBase
     private readonly GoogleAuthOptions _googleOptions;
     private readonly GitHubAuthService _github;
     private readonly GitHubAuthOptions _githubOptions;
+    private readonly IEmailSender _email;
+    private readonly IConfiguration _config;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -35,6 +38,8 @@ public class AuthController : ControllerBase
         IOptions<GoogleAuthOptions> googleOptions,
         GitHubAuthService github,
         IOptions<GitHubAuthOptions> githubOptions,
+        IEmailSender email,
+        IConfiguration config,
         ILogger<AuthController> logger)
     {
         _db = db;
@@ -44,8 +49,13 @@ public class AuthController : ControllerBase
         _googleOptions = googleOptions.Value;
         _github = github;
         _githubOptions = githubOptions.Value;
+        _email = email;
+        _config = config;
         _logger = logger;
     }
+
+    private string AppBaseUrl =>
+        (_config.GetValue<string>("App:BaseUrl") ?? "http://localhost:5173").TrimEnd('/');
 
     public record RegisterDto(
         [Required, EmailAddress] string Email,
@@ -86,7 +96,20 @@ public class AuthController : ControllerBase
         _db.Users.Add(user);
         await _db.SaveChangesAsync(ct);
 
+        await SafeSendWelcomeAsync(user, ct);
         return Ok(await IssueResponseAsync(user, ct));
+    }
+
+    private async Task SafeSendWelcomeAsync(User user, CancellationToken ct)
+    {
+        try
+        {
+            await _email.SendAsync(EmailTemplates.Welcome(user.Email, user.DisplayName, AppBaseUrl), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+        }
     }
 
     [HttpPost("login")]
@@ -149,8 +172,9 @@ public class AuthController : ControllerBase
 
         var emailLower = payload.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower || u.GoogleId == payload.Subject, ct);
+        var isNew = user is null;
 
-        if (user is null)
+        if (isNew)
         {
             user = new User
             {
@@ -166,11 +190,12 @@ public class AuthController : ControllerBase
         else
         {
             // Link Google to existing email account on first Google sign-in.
-            user.GoogleId ??= payload.Subject;
+            user!.GoogleId ??= payload.Subject;
             user.AvatarUrl ??= payload.Picture;
         }
         await _db.SaveChangesAsync(ct);
 
+        if (isNew) await SafeSendWelcomeAsync(user!, ct);
         return Ok(await IssueResponseAsync(user, ct));
     }
 
@@ -194,8 +219,9 @@ public class AuthController : ControllerBase
 
         var emailLower = profile.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower || u.GitHubId == profile.Id, ct);
+        var isNew = user is null;
 
-        if (user is null)
+        if (isNew)
         {
             user = new User
             {
@@ -210,12 +236,13 @@ public class AuthController : ControllerBase
         }
         else
         {
-            user.GitHubId ??= profile.Id;
+            user!.GitHubId ??= profile.Id;
             user.AvatarUrl ??= profile.AvatarUrl;
         }
         await _db.SaveChangesAsync(ct);
 
-        return Ok(await IssueResponseAsync(user, ct));
+        if (isNew) await SafeSendWelcomeAsync(user!, ct);
+        return Ok(await IssueResponseAsync(user!, ct));
     }
 
     [HttpPost("forgot-password")]
@@ -241,8 +268,16 @@ public class AuthController : ControllerBase
         });
         await _db.SaveChangesAsync(ct);
 
-        // MVP bez SMTP — log do konsoli; deploy przepnie to do mailera.
-        _logger.LogInformation("[PASSWORD RESET] Link dla {Email}: /reset-password?code={Raw}", emailLower, raw);
+        var resetUrl = $"{AppBaseUrl}/reset-password?code={Uri.EscapeDataString(raw)}";
+        try
+        {
+            await _email.SendAsync(EmailTemplates.PasswordReset(user.Email, user.DisplayName, resetUrl), ct);
+        }
+        catch (Exception ex)
+        {
+            // Email failure nie ujawniamy klientowi — log + zwracamy ok (token i tak istnieje w DB).
+            _logger.LogError(ex, "Failed to send password-reset email to {Email}", user.Email);
+        }
         return Ok(new { ok = true });
     }
 

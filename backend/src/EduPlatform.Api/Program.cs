@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using EduPlatform.AiService;
 using EduPlatform.Api.Auth;
 using EduPlatform.Api.Billing;
+using EduPlatform.Api.Email;
 using EduPlatform.Api.Hubs;
 using EduPlatform.Api.Seed;
 using EduPlatform.Api.Services;
@@ -43,6 +44,21 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 builder.Services.Configure<GitHubAuthOptions>(builder.Configuration.GetSection(GitHubAuthOptions.SectionName));
 builder.Services.AddHttpClient<GitHubAuthService>();
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+// SMTP w prod, logger fallback w dev (i gdy brak konfiguracji).
+{
+    var smtpSection = builder.Configuration.GetSection(SmtpOptions.SectionName);
+    var smtpHost = smtpSection.GetValue<string>("Host");
+    if (!string.IsNullOrEmpty(smtpHost))
+    {
+        builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+    }
+    else
+    {
+        builder.Services.AddScoped<IEmailSender, LoggingEmailSender>();
+    }
+}
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<RefreshTokenService>();
 
