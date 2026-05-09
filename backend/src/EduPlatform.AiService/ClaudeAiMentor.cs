@@ -31,6 +31,16 @@ public class ClaudeAiMentor : IAiMentor
         Zwracasz wyłącznie poprawny JSON wg podanego schematu, bez komentarza.
         """;
 
+    private const string ImprovementSystemPrompt = """
+        Jesteś dydaktykiem programowania, który ulepsza istniejące lekcje na
+        podstawie realnych danych: gdzie studenci się zacinają, jakie błędy
+        popełniają najczęściej, o co pytają mentora AI. Diagnozujesz problem
+        konkretnie ("brakuje wyjaśnienia X przed zadaniem"), proponujesz
+        listę krótkich, wykonalnych zmian, a potem przepisujesz lekcję.
+        Zachowujesz styl: po polsku, "tykasz" studenta, konkretnie.
+        Zwracasz WYŁĄCZNIE JSON.
+        """;
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -149,6 +159,104 @@ public class ClaudeAiMentor : IAiMentor
         {
             _logger.LogError(ex, "Failed to parse generated lesson JSON. Raw: {Raw}", text);
             return StubLesson(request);
+        }
+    }
+
+    public async Task<LessonImprovement> ProposeImprovementAsync(LessonImprovementContext context, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(_options.ApiKey))
+        {
+            return new LessonImprovement(
+                Diagnosis: "[AI off] Skonfiguruj Claude API key, by dostać prawdziwą diagnozę.",
+                Suggestions: Array.Empty<string>(),
+                RewrittenLesson: null);
+        }
+
+        var errorList = string.Join("\n", context.TopErrors.Select(e => $"- {e.Occurrences}× {e.Description}"));
+        var questionList = string.Join("\n", context.TopQuestions.Select(q => $"- {q.Occurrences}× {q.Question}"));
+
+        var userPrompt = $$"""
+            Aktualna lekcja:
+            ## {{context.CurrentTitle}}
+            {{context.CurrentMarkdown}}
+
+            Kod startowy:
+            ```python
+            {{context.CurrentStarterCode}}
+            ```
+
+            Testy:
+            ```python
+            {{context.CurrentTestsCode}}
+            ```
+
+            Dane analityczne:
+            - % ukończenia: {{(context.CompletionRate * 100):F0}}%
+            - średnia liczba prób: {{context.AvgAttempts:F1}}
+            - najczęstsze błędy:
+            {{(string.IsNullOrEmpty(errorList) ? "(brak)" : errorList)}}
+            - najczęstsze pytania do mentora:
+            {{(string.IsNullOrEmpty(questionList) ? "(brak)" : questionList)}}
+
+            Zadanie: zdiagnozuj co jest źle, zaproponuj 3–5 konkretnych zmian
+            i przepisz całą lekcję z poprawkami.
+
+            Zwróć WYŁĄCZNIE JSON:
+            {
+              "diagnosis": string,
+              "suggestions": string[],
+              "rewrittenLesson": {
+                "title": string,
+                "theory": string (markdown),
+                "starterCode": string,
+                "solutionCode": string,
+                "testsCode": string,
+                "hints": string[]
+              }
+            }
+            """;
+
+        var body = new
+        {
+            model = _options.Model,
+            max_tokens = Math.Max(_options.MaxTokens, 3072),
+            system = ImprovementSystemPrompt,
+            messages = new[] { new { role = "user", content = userPrompt } },
+        };
+
+        var (text, _) = await CallClaudeAsync(body, cancellationToken);
+
+        try
+        {
+            var json = ExtractJsonObject(text);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            GeneratedLesson? rewritten = null;
+            if (root.TryGetProperty("rewrittenLesson", out var rl) && rl.ValueKind == JsonValueKind.Object)
+            {
+                rewritten = new GeneratedLesson(
+                    Title: rl.GetProperty("title").GetString() ?? context.CurrentTitle,
+                    Theory: rl.GetProperty("theory").GetString() ?? string.Empty,
+                    StarterCode: rl.GetProperty("starterCode").GetString() ?? string.Empty,
+                    SolutionCode: rl.GetProperty("solutionCode").GetString() ?? string.Empty,
+                    TestsCode: rl.GetProperty("testsCode").GetString() ?? string.Empty,
+                    Hints: rl.TryGetProperty("hints", out var h) && h.ValueKind == JsonValueKind.Array
+                        ? h.EnumerateArray().Select(e => e.GetString() ?? string.Empty).ToArray()
+                        : Array.Empty<string>());
+            }
+
+            return new LessonImprovement(
+                Diagnosis: root.TryGetProperty("diagnosis", out var d) ? d.GetString() ?? string.Empty : string.Empty,
+                Suggestions: root.TryGetProperty("suggestions", out var s) && s.ValueKind == JsonValueKind.Array
+                    ? s.EnumerateArray().Select(e => e.GetString() ?? string.Empty).ToArray()
+                    : Array.Empty<string>(),
+                RewrittenLesson: rewritten);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse improvement JSON. Raw: {Raw}", text);
+            return new LessonImprovement("Nie udało się zinterpretować odpowiedzi AI.", Array.Empty<string>(), null);
         }
     }
 

@@ -19,7 +19,7 @@ export default function Register() {
     setPending(true);
     try {
       const res = await api.register(email, password, displayName, becomeAuthor);
-      setSession(res.token, res.expiresAt, res.user);
+      setSession(res.token, res.expiresAt, res.refreshToken, res.user);
       navigate('/courses', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');
