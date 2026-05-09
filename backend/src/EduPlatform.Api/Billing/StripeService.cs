@@ -14,13 +14,15 @@ public class StripeService
     private readonly StripeOptions _options;
     private readonly ILogger<StripeService> _logger;
     private readonly InvoiceService _invoices;
+    private readonly EduPlatform.Api.Services.NotificationService _notifications;
 
-    public StripeService(AppDbContext db, IOptions<StripeOptions> options, ILogger<StripeService> logger, InvoiceService invoices)
+    public StripeService(AppDbContext db, IOptions<StripeOptions> options, ILogger<StripeService> logger, InvoiceService invoices, EduPlatform.Api.Services.NotificationService notifications)
     {
         _db = db;
         _options = options.Value;
         _logger = logger;
         _invoices = invoices;
+        _notifications = notifications;
         if (!string.IsNullOrEmpty(_options.SecretKey))
         {
             StripeConfiguration.ApiKey = _options.SecretKey;
@@ -114,10 +116,84 @@ public class StripeService
                 }
                 break;
 
+            case "invoice.payment_failed":
+                if (stripeEvent.Data.Object is Stripe.Invoice failedInvoice)
+                {
+                    await NotifyPaymentFailedAsync(failedInvoice, ct);
+                }
+                break;
+
+            case "charge.refunded":
+                if (stripeEvent.Data.Object is Stripe.Charge refundedCharge)
+                {
+                    await NotifyRefundedAsync(refundedCharge, ct);
+                }
+                break;
+
+            case "charge.dispute.created":
+                if (stripeEvent.Data.Object is Stripe.Dispute dispute)
+                {
+                    await NotifyDisputeAsync(dispute, ct);
+                }
+                break;
+
             default:
                 _logger.LogInformation("Unhandled Stripe event: {Type}", stripeEvent.Type);
                 break;
         }
+    }
+
+    private async Task NotifyPaymentFailedAsync(Stripe.Invoice invoice, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(invoice.CustomerId)) return;
+        var local = await _db.Subscriptions.FirstOrDefaultAsync(s => s.StripeCustomerId == invoice.CustomerId, ct);
+        if (local is null) return;
+
+        local.Status = Domain.Entities.SubscriptionStatus.PastDue;
+        _notifications.Notify(
+            local.UserId,
+            type: "billing.payment_failed",
+            title: "Płatność nie powiodła się",
+            body: "Nie udało się pobrać opłaty za subskrypcję. Zaktualizuj metodę płatności w panelu konta — Stripe spróbuje jeszcze raz.",
+            url: "/account");
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task NotifyRefundedAsync(Stripe.Charge charge, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(charge.CustomerId)) return;
+        var local = await _db.Subscriptions.FirstOrDefaultAsync(s => s.StripeCustomerId == charge.CustomerId, ct);
+        if (local is null) return;
+
+        var amountZl = charge.AmountRefunded / 100m;
+        _notifications.Notify(
+            local.UserId,
+            type: "billing.refunded",
+            title: "Zwrot płatności",
+            body: $"Zwrot {amountZl:F2} {charge.Currency?.ToUpperInvariant()} został zaksięgowany — środki wrócą na Twoją kartę w ciągu 5-10 dni.",
+            url: "/account");
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task NotifyDisputeAsync(Stripe.Dispute dispute, CancellationToken ct)
+    {
+        // Dispute idzie do adminów (nie do customera — z perspektywy customera wszystko OK).
+        var adminIds = await _db.Users
+            .Where(u => u.Role == Domain.Enums.UserRole.Admin)
+            .Select(u => u.Id)
+            .ToListAsync(ct);
+
+        var amountZl = dispute.Amount / 100m;
+        foreach (var adminId in adminIds)
+        {
+            _notifications.Notify(
+                adminId,
+                type: "billing.dispute",
+                title: $"⚠️ Stripe dispute: {amountZl:F2} {dispute.Currency?.ToUpperInvariant()}",
+                body: $"Powód: {dispute.Reason ?? "(brak)"}. Sprawdź Stripe Dashboard → Disputes i odpowiedz w terminie (zwykle 7-21 dni).",
+                url: "https://dashboard.stripe.com/disputes/" + dispute.Id);
+        }
+        await _db.SaveChangesAsync(ct);
     }
 
     private async Task GenerateInvoiceFromStripeAsync(Stripe.Invoice paid, CancellationToken ct)
