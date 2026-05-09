@@ -14,6 +14,8 @@ import GenerateFromText from './pages/author/GenerateFromText';
 import GenerateCourse from './pages/author/GenerateCourse';
 import Analytics from './pages/author/Analytics';
 import PendingCourses from './pages/admin/PendingCourses';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
 import ProtectedRoute from './components/ProtectedRoute';
 import Toaster from './components/Toaster';
 import MyCourses from './pages/MyCourses';
@@ -194,7 +196,23 @@ export default function App() {
             path="/admin"
             element={
               <ProtectedRoute roles={['Admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/pending"
+            element={
+              <ProtectedRoute roles={['Admin']}>
                 <PendingCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute roles={['Admin']}>
+                <AdminUsers />
               </ProtectedRoute>
             }
           />

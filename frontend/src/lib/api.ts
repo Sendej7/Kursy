@@ -448,6 +448,36 @@ export const api = {
 
   // admin
   admin: {
+    stats: () =>
+      http<{
+        users: number;
+        authors: number;
+        coursesPublic: number;
+        coursesPending: number;
+        coursesDraft: number;
+        submissions: number;
+        aiInteractions: number;
+        certificates: number;
+        lessonsCompletedTotal: number;
+      }>('/admin/stats'),
+    users: (q?: string) =>
+      http<
+        {
+          id: string;
+          email: string;
+          displayName: string;
+          role: 'Student' | 'Author' | 'Admin';
+          createdAt: string;
+          authoredCourses: number;
+          enrollments: number;
+          certificates: number;
+        }[]
+      >(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    setRole: (userId: string, role: 'Student' | 'Author' | 'Admin') =>
+      http<void>(`/admin/users/${userId}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role }),
+      }),
     pendingCourses: () =>
       http<
         {
