@@ -47,6 +47,7 @@ const PendingCourses = lazy(() => import('./pages/admin/PendingCourses'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminOrganizations = lazy(() => import('./pages/admin/Organizations'));
+const AdminPromoCodes = lazy(() => import('./pages/admin/PromoCodes'));
 
 function PageFallback() {
   return (
@@ -310,6 +311,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['Admin']}>
                   <AdminOrganizations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/promo-codes"
+              element={
+                <ProtectedRoute roles={['Admin']}>
+                  <AdminPromoCodes />
                 </ProtectedRoute>
               }
             />
