@@ -4,11 +4,13 @@ using EduPlatform.Domain.Entities;
 using EduPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EduPlatform.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("ai")]
 public class AiController : ControllerBase
 {
     private readonly IAiMentor _mentor;
