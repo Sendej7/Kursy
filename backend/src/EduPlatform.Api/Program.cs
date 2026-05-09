@@ -29,7 +29,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<NotificationsPushInterceptor>();
+builder.Services.AddInfrastructure(builder.Configuration, (sp, opts) =>
+    opts.AddInterceptors(sp.GetRequiredService<NotificationsPushInterceptor>()));
 builder.Services.AddAiService(builder.Configuration);
 builder.Services.AddSingleton<ICodeRunner, InMemoryCodeRunner>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
@@ -160,6 +162,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<LessonHub>("/hubs/lesson");
+app.MapHub<NotificationsHub>("/hubs/notifications");
 app.MapHealthChecks("/api/health/ready");
 
 // Migrate i (opcjonalnie) seeduj. W testach z InMemory provider seeder się degraduje
