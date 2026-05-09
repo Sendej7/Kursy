@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CourseLanguage } from '@/lib/api';
+import { CardSkeleton } from '@/components/Skeleton';
 
 const LANGUAGES: (CourseLanguage | 'all')[] = ['all', 'Python', 'JavaScript', 'TypeScript', 'CSharp', 'Sql'];
 
@@ -71,10 +72,10 @@ export default function CourseCatalog() {
         </div>
       )}
 
-      {isLoading && <p className="text-gray-500">Ładowanie…</p>}
       {error && <p className="text-red-600">Nie udało się pobrać kursów.</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isLoading && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
         {data?.map((c) => (
           <Link
             key={c.id}

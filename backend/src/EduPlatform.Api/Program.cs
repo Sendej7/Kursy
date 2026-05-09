@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using EduPlatform.AiService;
 using EduPlatform.Api.Auth;
 using EduPlatform.Api.Hubs;
@@ -8,6 +9,9 @@ using EduPlatform.CodeRunner;
 using EduPlatform.Infrastructure;
 using EduPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +27,7 @@ builder.Services.AddAiService(builder.Configuration);
 builder.Services.AddSingleton<ICodeRunner, InMemoryCodeRunner>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<CertificateService>();
+builder.Services.AddScoped<GamificationService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<JwtTokenService>();
@@ -63,6 +68,24 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", httpCtx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpCtx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database");
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy => policy
@@ -82,10 +105,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<LessonHub>("/hubs/lesson");
+app.MapHealthChecks("/api/health/ready");
 
 if (app.Environment.IsDevelopment())
 {

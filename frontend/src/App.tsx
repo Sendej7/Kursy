@@ -17,10 +17,12 @@ import PendingCourses from './pages/admin/PendingCourses';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import ProtectedRoute from './components/ProtectedRoute';
+import StreakPill from './components/StreakPill';
 import Toaster from './components/Toaster';
 import MyCourses from './pages/MyCourses';
 import MyCertificates from './pages/MyCertificates';
 import CertificateDetail from './pages/CertificateDetail';
+import Leaderboard from './pages/Leaderboard';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -49,6 +51,9 @@ function Header() {
           <Link to="/courses" className="hover:underline">
             Katalog
           </Link>
+          <Link to="/leaderboard" className="hover:underline">
+            Top XP
+          </Link>
           {auth.isAuthenticated() && (
             <>
               <Link to="/my-courses" className="hover:underline">
@@ -71,6 +76,7 @@ function Header() {
           )}
           {auth.isAuthenticated() ? (
             <>
+              <StreakPill />
               <span className="text-gray-500">{auth.user?.displayName}</span>
               <button onClick={logout} className="text-gray-500 hover:underline">
                 Wyloguj
@@ -103,6 +109,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/courses" element={<CourseCatalog />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/courses/:slug" element={<CourseDetail />} />
           <Route path="/courses/:slug/lessons/:lessonId" element={<LessonView />} />
 

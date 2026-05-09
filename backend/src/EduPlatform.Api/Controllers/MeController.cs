@@ -33,6 +33,34 @@ public class MeController : ControllerBase
         DateTime EnrolledAt,
         Guid? NextLessonId);
 
+    public record MeStatsDto(
+        int TotalXp,
+        int CurrentStreakDays,
+        int LongestStreakDays,
+        DateTime? LastActiveDay,
+        int LessonsCompleted,
+        int CertificatesEarned);
+
+    [HttpGet("stats")]
+    public async Task<ActionResult<MeStatsDto>> Stats(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return NotFound();
+
+        var lessonsDone = await _db.LessonProgresses.CountAsync(p => p.UserId == userId && p.Completed, ct);
+        var certs = await _db.Certificates.CountAsync(c => c.UserId == userId, ct);
+
+        return Ok(new MeStatsDto(
+            user.TotalXp,
+            user.CurrentStreakDays,
+            user.LongestStreakDays,
+            user.LastActiveDay,
+            lessonsDone,
+            certs));
+    }
+
     [HttpGet("courses")]
     public async Task<IActionResult> MyCourses(CancellationToken ct)
     {
