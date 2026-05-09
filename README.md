@@ -47,13 +47,32 @@ docs/       # PLAN.md
 
 ## Uruchomienie lokalne
 
-### 1. Postgres
+### Najszybciej: Docker Compose (cały stack jednym poleceniem)
+
+```bash
+cp .env.example .env       # opcjonalnie wypełnij sekrety
+docker compose up -d --build
+```
+
+Otwórz **http://localhost:5173**. Backend: `:5080`, Mailhog UI (przechwytuje maile w dev): `:8025`,
+Postgres: `:5432`. Pierwsze odpalenie buduje obrazy (~2-3 min), potem `up` startuje w sekundach.
+Migracje EF lecą automatycznie przy starcie API.
+
+```bash
+docker compose logs -f backend     # logi
+docker compose down                # zatrzymaj
+docker compose down -v             # zatrzymaj + skasuj dane (wipe Postgres)
+```
+
+### Ręcznie (do hot-reload'a kodu)
+
+#### 1. Postgres
 
 ```bash
 docker compose up -d postgres
 ```
 
-### 2. Backend
+#### 2. Backend
 
 ```bash
 cd backend
@@ -61,22 +80,23 @@ dotnet restore
 dotnet run --project src/EduPlatform.Api
 ```
 
-API słucha na `http://localhost:5080`. W trybie Development:
-- baza zostaje utworzona przez `EnsureCreated()`,
-- seed dorzuca demo autora (`demo@kursy.pl` / `demo1234`) i kurs **„Python od zera"** z 3 lekcjami.
+API słucha na `http://localhost:5080`. W trybie Development migracje EF lecą automatycznie i seed
+dorzuca demo autora (`demo@kursy.pl` / `demo1234`) + kurs **„Python od zera"**.
 
-#### Konfiguracja sekretów (development)
+##### Konfiguracja sekretów
 
 ```bash
 cd backend/src/EduPlatform.Api
 dotnet user-secrets init
 dotnet user-secrets set "Claude:ApiKey" "sk-ant-..."
 dotnet user-secrets set "Jwt:SigningKey" "co-najmniej-32-znaki-tajny-string"
+# opcjonalnie: Stripe, Google/GitHub OAuth, SMTP — patrz .env.example
 ```
 
-Bez `Claude:ApiKey` AI mentor zwraca komunikat „skonfiguruj klucz". Reszta API działa.
+Bez kluczy poszczególne ficzery degradują się do „nieskonfigurowane" (AI / płatności / OAuth /
+maile), reszta API działa.
 
-### 3. Frontend
+#### 3. Frontend
 
 ```bash
 cd frontend
@@ -121,13 +141,19 @@ POST /api/admin/courses/{id}/approve
 POST /api/admin/courses/{id}/reject
 ```
 
-## Co dalej (po feedbacku z testów)
+## Co dalej
 
-- Pełen flow „PDF/PPTX → struktura kursu → lekcje per call AI" (na razie tylko text → lekcja)
-- SignalR live progress (hub jest, frontend jeszcze nie podpięty)
-- Wsparcie dla innych języków (Judge0 dla JS/SQL/C#)
-- Płatności (Stripe + Przelewy24)
-- Aplikacja mobilna (React Native)
+Niewielka pula ficzerów do dorobienia (każdy ~1 iteracja):
+
+- Discount codes (Stripe promo)
+- Drag-drop reorder modułów / lekcji + course duplication
+- Achievements/odznaki (zebrać rozproszone XP/streaki/certs w spójny system)
+- Stripe webhook expansion (refunds, disputes, failed payments)
+- Author payouts (Stripe Connect)
+- LTI 1.3 dla LMS uczelni
+- JS/TS lessons (drugi język programowania — wymaga Judge0 lub V8 isolate)
+- Sentry / Serilog / Redis backplane dla SignalR (skala >1 instancja)
+- Więcej testów integracyjnych (mamy 7, sensownie ~40)
 
 ## Licencja
 
