@@ -715,6 +715,24 @@ export const api = {
     return res.json();
   },
 
+  extractPptx: async (file: File): Promise<{ text: string; length: number; fileName: string }> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const token = useAuth.getState().token;
+    const res = await fetch(`${BASE}/author/extract-pptx`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      const msg = body?.error ?? `${res.status} ${res.statusText}`;
+      throw new ApiError(res.status, msg, body);
+    }
+    return res.json();
+  },
+
+
   // organizations / B2B codes
   redeemCode: (code: string) =>
     http<{ organizationName: string | null; accessUntil: string; grantsMonths: number }>(

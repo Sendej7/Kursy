@@ -143,25 +143,33 @@ export default function GenerateCourse() {
       {step === 'source' && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Wgraj PDF albo wklej tekst (notatki, fragment skryptu, sylabus). AI zaproponuje strukturę kursu —
-            moduły i lekcje. Potem ją edytujesz, a AI wygeneruje treść każdej lekcji osobno.
+            Wgraj PDF lub PPTX albo wklej tekst (notatki, fragment skryptu, sylabus, slajdy). AI
+            zaproponuje strukturę kursu — moduły i lekcje. Potem ją edytujesz, a AI wygeneruje
+            treść każdej lekcji osobno.
           </p>
           <label className="block">
-            <span className="text-xs">Wgraj PDF (opcjonalnie)</span>
+            <span className="text-xs">Wgraj PDF lub PPTX (opcjonalnie)</span>
             <input
               type="file"
-              accept="application/pdf,.pdf"
+              accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx"
               className="mt-1 block text-sm"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                const isPptx = file.name.toLowerCase().endsWith('.pptx');
+                const isPdf = file.name.toLowerCase().endsWith('.pdf');
+                if (!isPdf && !isPptx) {
+                  toast.error('Obsługiwane formaty: PDF i PPTX.');
+                  e.target.value = '';
+                  return;
+                }
                 setPending(true);
                 try {
-                  const res = await api.extractPdf(file);
+                  const res = isPptx ? await api.extractPptx(file) : await api.extractPdf(file);
                   setText(res.text);
                   toast.success(`Wczytano ${res.length.toLocaleString()} znaków z ${res.fileName}`);
                 } catch (err) {
-                  toast.error(err instanceof Error ? err.message : 'Nie udało się wczytać PDF.');
+                  toast.error(err instanceof Error ? err.message : 'Nie udało się wczytać pliku.');
                 } finally {
                   setPending(false);
                   e.target.value = '';
