@@ -1,5 +1,9 @@
-version: "3.9"
-
+# Jeden plik na cały dev stack: postgres + backend + frontend + mailhog.
+# `docker compose up -d` i otwórz http://localhost:5173. Mailhog UI: http://localhost:8025.
+#
+# Sekrety (Stripe / Google / GitHub / SMTP / Claude API) → plik .env w katalogu obok
+# (patrz .env.example). Backend i bez nich startuje — większość ficzerów degraduje się
+# do stanu "nieskonfigurowane" zamiast się wywalać.
 services:
   postgres:
     image: postgres:17-alpine
@@ -17,6 +21,68 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: kursy-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=eduplatform;Username=postgres;Password=postgres"
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:-dev-only-key-min-32-chars-please-change-me}"
+      App__BaseUrl: "${APP_BASE_URL:-http://localhost:5173}"
+      # Opcjonalne — wszystkie ficzery degradują się gdy puste
+      Claude__ApiKey: "${CLAUDE_API_KEY:-}"
+      Stripe__SecretKey: "${STRIPE_SECRET_KEY:-}"
+      Stripe__PublishableKey: "${STRIPE_PUBLISHABLE_KEY:-}"
+      Stripe__WebhookSecret: "${STRIPE_WEBHOOK_SECRET:-}"
+      Stripe__ProPriceId: "${STRIPE_PRO_PRICE_ID:-}"
+      GoogleAuth__ClientId: "${GOOGLE_CLIENT_ID:-}"
+      GitHubAuth__ClientId: "${GITHUB_CLIENT_ID:-}"
+      GitHubAuth__ClientSecret: "${GITHUB_CLIENT_SECRET:-}"
+      GitHubAuth__RedirectUri: "${APP_BASE_URL:-http://localhost:5173}/auth/github/callback"
+      Smtp__Host: "${SMTP_HOST:-mailhog}"
+      Smtp__Port: "${SMTP_PORT:-1025}"
+      Smtp__UseStartTls: "false"
+      Smtp__FromEmail: "${SMTP_FROM:-no-reply@kursy.local}"
+    ports:
+      - "5080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/api/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # API_BASE pusty = frontend uderza w relative /api (działa jeśli reverse proxy
+        # oddaje /api do backendu). Z poniższym ustawieniem domyślnym hit'uje localhost:5080.
+        VITE_API_BASE: "${VITE_API_BASE:-http://localhost:5080/api}"
+        VITE_GOOGLE_CLIENT_ID: "${VITE_GOOGLE_CLIENT_ID:-}"
+        VITE_GITHUB_CLIENT_ID: "${VITE_GITHUB_CLIENT_ID:-}"
+    container_name: kursy-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+  # Lokalny SMTP do testowania flow'ów maili (welcome / reset / verify) bez prawdziwego serwera.
+  # UI: http://localhost:8025
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: kursy-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
 volumes:
   kursy-pg-data:
