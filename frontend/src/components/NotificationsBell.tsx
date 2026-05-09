@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { subscribeToNotifications } from '@/lib/notificationsHub';
 
 export default function NotificationsBell() {
   const auth = useAuth();
@@ -13,14 +14,38 @@ export default function NotificationsBell() {
 
   const enabled = auth.isAuthenticated();
 
-  // Polling unread count co 60s gdy zalogowany — taniej niż WebSocket dla MVP.
+  // Real-time push przez SignalR; polling 5 min jako safety-net jeśli WebSocket pada.
   const unread = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => api.notifications.unreadCount(),
     enabled,
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: true,
   });
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cleanup: (() => Promise<void>) | null = null;
+    let cancelled = false;
+
+    subscribeToNotifications(() => {
+      // Każdy push → odśwież badge i listę. Lista refetchuje się tylko gdy dropdown otwarty (enabled flag).
+      qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+      qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    })
+      .then((c) => {
+        if (cancelled) c();
+        else cleanup = c;
+      })
+      .catch(() => {
+        // Hub nieosiągalny — fallback do pollingu (już skonfigurowany).
+      });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [enabled, qc]);
 
   const list = useQuery({
     queryKey: ['notifications', 'list'],
