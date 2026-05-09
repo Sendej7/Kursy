@@ -14,10 +14,12 @@ public class CoursesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly NotificationService _notifications;
 
-    public CoursesController(AppDbContext db, ICurrentUser currentUser)
+    public CoursesController(AppDbContext db, ICurrentUser currentUser, NotificationService notifications)
     {
         _db = db;
+        _notifications = notifications;
         _currentUser = currentUser;
     }
 
@@ -171,6 +173,21 @@ public class CoursesController : ControllerBase
         if (exists) return NoContent();
 
         _db.CourseEnrollments.Add(new CourseEnrollment { UserId = userId, CourseId = id });
+
+        if (course.AuthorId != userId)
+        {
+            var studentName = await _db.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.DisplayName)
+                .FirstOrDefaultAsync(ct);
+            _notifications.Notify(
+                course.AuthorId,
+                type: "enrolment.new",
+                title: $"Nowy student na kursie {course.Title}",
+                body: $"{studentName ?? "Ktoś"} zapisał się na Twój kurs.",
+                url: $"/author/courses/{course.Id}/analytics");
+        }
+
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

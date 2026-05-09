@@ -300,6 +300,26 @@ export const api = {
   resendVerification: () =>
     http<{ ok: boolean }>('/auth/resend-verification', { method: 'POST' }),
 
+  notifications: {
+    list: (take = 20) =>
+      http<
+        {
+          id: string;
+          type: string;
+          title: string;
+          body: string | null;
+          url: string | null;
+          createdAt: string;
+          readAt: string | null;
+        }[]
+      >(`/me/notifications?take=${take}`),
+    unreadCount: () => http<{ count: number }>('/me/notifications/unread-count'),
+    markRead: (id: string) =>
+      http<void>(`/me/notifications/${id}/read`, { method: 'POST' }),
+    markAllRead: () =>
+      http<void>('/me/notifications/read-all', { method: 'POST' }),
+  },
+
   // courses
   listCourses: (params?: { q?: string; language?: CourseLanguage; tag?: string }) => {
     const search = new URLSearchParams();

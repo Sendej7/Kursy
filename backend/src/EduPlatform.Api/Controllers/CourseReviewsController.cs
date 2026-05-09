@@ -14,11 +14,13 @@ public class CourseReviewsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly NotificationService _notifications;
 
-    public CourseReviewsController(AppDbContext db, ICurrentUser currentUser)
+    public CourseReviewsController(AppDbContext db, ICurrentUser currentUser, NotificationService notifications)
     {
         _db = db;
         _currentUser = currentUser;
+        _notifications = notifications;
     }
 
     public record ReviewDto(
@@ -72,8 +74,9 @@ public class CourseReviewsController : ControllerBase
             .FirstOrDefaultAsync(r => r.CourseId == courseId && r.UserId == userId, ct);
 
         var trimmedComment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
+        var isNew = existing is null;
 
-        if (existing is null)
+        if (isNew)
         {
             _db.CourseReviews.Add(new CourseReview
             {
@@ -85,12 +88,35 @@ public class CourseReviewsController : ControllerBase
         }
         else
         {
-            existing.Rating = dto.Rating;
+            existing!.Rating = dto.Rating;
             existing.Comment = trimmedComment;
         }
+
+        // Notyfikacja autora kursu — tylko dla nowych recenzji (nie spam'uj przy edycji).
+        if (isNew)
+        {
+            var course = await _db.Courses
+                .Where(c => c.Id == courseId)
+                .Select(c => new { c.AuthorId, c.Title, c.Slug })
+                .FirstOrDefaultAsync(ct);
+            if (course is not null && course.AuthorId != userId)
+            {
+                _notifications.Notify(
+                    course.AuthorId,
+                    type: "review.new",
+                    title: $"Nowa recenzja kursu: {course.Title}",
+                    body: $"Ocena: {dto.Rating}/5 gwiazdek"
+                          + (trimmedComment is null ? string.Empty : $" — {Truncate(trimmedComment, 120)}"),
+                    url: $"/courses/{course.Slug}");
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
+
+    private static string Truncate(string s, int max) =>
+        s.Length <= max ? s : s[..max] + "…";
 
     [HttpDelete("me")]
     [Authorize]
