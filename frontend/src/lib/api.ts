@@ -586,6 +586,18 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
+    duplicateCourse: (id: string) =>
+      http<{ id: string; slug: string }>(`/author/courses/${id}/duplicate`, { method: 'POST' }),
+    reorderModules: (courseId: string, moduleIds: string[]) =>
+      http<void>('/author/modules/reorder', {
+        method: 'PATCH',
+        body: JSON.stringify({ courseId, moduleIds }),
+      }),
+    reorderLessons: (moduleId: string, lessonIds: string[]) =>
+      http<void>('/author/lessons/reorder', {
+        method: 'PATCH',
+        body: JSON.stringify({ moduleId, lessonIds }),
+      }),
     createLesson: (payload: {
       moduleId: string;
       title: string;
