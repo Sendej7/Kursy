@@ -41,6 +41,8 @@ builder.Services.AddScoped<StripeService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
+builder.Services.Configure<GitHubAuthOptions>(builder.Configuration.GetSection(GitHubAuthOptions.SectionName));
+builder.Services.AddHttpClient<GitHubAuthService>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<RefreshTokenService>();
 
@@ -123,11 +125,22 @@ app.MapControllers();
 app.MapHub<LessonHub>("/hubs/lesson");
 app.MapHealthChecks("/api/health/ready");
 
-if (app.Environment.IsDevelopment())
+// Migrate i (opcjonalnie) seeduj. W testach z InMemory provider seeder się degraduje
+// do EnsureCreated; w dev/prod uruchamia migracje EF Core.
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DatabaseSeeder.SeedAsync(db);
+    var providerName = db.Database.ProviderName ?? string.Empty;
+    var isInMemory = providerName.Contains("InMemory", StringComparison.OrdinalIgnoreCase);
+
+    if (app.Environment.IsDevelopment())
+    {
+        await DatabaseSeeder.SeedAsync(db);
+    }
+    else if (!isInMemory)
+    {
+        await db.Database.MigrateAsync();
+    }
 }
 
 app.Run();

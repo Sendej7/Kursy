@@ -9,7 +9,20 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(AppDbContext db, CancellationToken ct = default)
     {
-        await db.Database.EnsureCreatedAsync(ct);
+        // Bez relacyjnego providera (np. InMemory w testach) Migrate() rzuca —
+        // sprawdzamy po nazwie providera, bo IsRelational() jest myląca przy
+        // UseInternalServiceProvider w testach.
+        var providerName = db.Database.ProviderName ?? string.Empty;
+        var isInMemory = providerName.Contains("InMemory", StringComparison.OrdinalIgnoreCase);
+
+        if (!isInMemory)
+        {
+            await db.Database.MigrateAsync(ct);
+        }
+        else
+        {
+            await db.Database.EnsureCreatedAsync(ct);
+        }
 
         if (await db.Courses.AnyAsync(ct)) return;
 
