@@ -15,6 +15,8 @@ import GenerateCourse from './pages/author/GenerateCourse';
 import Analytics from './pages/author/Analytics';
 import PendingCourses from './pages/admin/PendingCourses';
 import ProtectedRoute from './components/ProtectedRoute';
+import Toaster from './components/Toaster';
+import MyCourses from './pages/MyCourses';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -43,6 +45,11 @@ function Header() {
           <Link to="/courses" className="hover:underline">
             Katalog
           </Link>
+          {auth.isAuthenticated() && (
+            <Link to="/my-courses" className="hover:underline">
+              Moje kursy
+            </Link>
+          )}
           {auth.user?.role === 'Author' || auth.user?.role === 'Admin' ? (
             <Link to="/author" className="hover:underline">
               Panel autora
@@ -92,6 +99,15 @@ export default function App() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          <Route
+            path="/my-courses"
+            element={
+              <ProtectedRoute>
+                <MyCourses />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/author"
@@ -171,6 +187,7 @@ export default function App() {
       <footer className="border-t text-xs text-gray-500 py-3 text-center">
         Kursy — polska platforma do nauki kodowania.
       </footer>
+      <Toaster />
     </div>
   );
 }

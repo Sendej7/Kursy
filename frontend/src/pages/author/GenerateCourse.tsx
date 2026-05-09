@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type CourseLanguage } from '@/lib/api';
+import { toast } from '@/lib/toast';
 
 interface LessonRow {
   title: string;
@@ -142,9 +143,32 @@ export default function GenerateCourse() {
       {step === 'source' && (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Wklej tekst (notatki, fragment skryptu, opis tematu, treść z PDF). AI zaproponuje strukturę kursu —
+            Wgraj PDF albo wklej tekst (notatki, fragment skryptu, sylabus). AI zaproponuje strukturę kursu —
             moduły i lekcje. Potem ją edytujesz, a AI wygeneruje treść każdej lekcji osobno.
           </p>
+          <label className="block">
+            <span className="text-xs">Wgraj PDF (opcjonalnie)</span>
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              className="mt-1 block text-sm"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setPending(true);
+                try {
+                  const res = await api.extractPdf(file);
+                  setText(res.text);
+                  toast.success(`Wczytano ${res.length.toLocaleString()} znaków z ${res.fileName}`);
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Nie udało się wczytać PDF.');
+                } finally {
+                  setPending(false);
+                  e.target.value = '';
+                }
+              }}
+            />
+          </label>
           <input
             className="w-full border rounded-md px-3 py-2 text-sm"
             placeholder="Sugerowany tytuł kursu (opcjonalnie)"

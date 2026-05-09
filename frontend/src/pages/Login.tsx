@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { toast } from '@/lib/toast';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,7 +20,8 @@ export default function Login() {
     try {
       const res = await api.login(email, password);
       setSession(res.token, res.expiresAt, res.refreshToken, res.user);
-      navigate(location.state?.from ?? '/courses', { replace: true });
+      toast.success(`Cześć, ${res.user.displayName}!`);
+      navigate(location.state?.from ?? '/my-courses', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');
     } finally {

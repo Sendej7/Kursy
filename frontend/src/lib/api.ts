@@ -371,6 +371,53 @@ export const api = {
       }),
   },
 
+  // me
+  myCourses: () =>
+    http<
+      {
+        id: string;
+        slug: string;
+        title: string;
+        description: string;
+        language: CourseLanguage;
+        lessonsTotal: number;
+        lessonsCompleted: number;
+        progressPercent: number;
+        enrolledAt: string;
+        nextLessonId: string | null;
+      }[]
+    >('/me/courses'),
+
+  lessonNav: (lessonId: string) =>
+    http<{
+      prevLessonId: string | null;
+      prevTitle: string | null;
+      nextLessonId: string | null;
+      nextTitle: string | null;
+      courseId: string;
+      courseSlug: string;
+      courseTitle: string;
+      indexInCourse: number;
+      courseTotalLessons: number;
+    }>(`/lessons/${lessonId}/nav`, { auth: false }),
+
+  extractPdf: async (file: File): Promise<{ text: string; length: number; fileName: string }> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const token = useAuth.getState().token;
+    const res = await fetch(`${BASE}/author/extract-pdf`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      const msg = body?.error ?? `${res.status} ${res.statusText}`;
+      throw new ApiError(res.status, msg, body);
+    }
+    return res.json();
+  },
+
   // admin
   admin: {
     pendingCourses: () =>
