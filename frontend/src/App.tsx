@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import StreakPill from './components/StreakPill';
 import Toaster from './components/Toaster';
+import EmailVerifyBanner from './components/EmailVerifyBanner';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -16,6 +17,7 @@ const LessonView = lazy(() => import('./pages/LessonView'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const GitHubCallback = lazy(() => import('./pages/GitHubCallback'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const MyCertificates = lazy(() => import('./pages/MyCertificates'));
 const CertificateDetail = lazy(() => import('./pages/CertificateDetail'));
@@ -131,6 +133,7 @@ export default function App() {
   return (
     <div className="min-h-full flex flex-col">
       <Header />
+      <EmailVerifyBanner />
       <main className="flex-1">
         <Suspense fallback={<PageFallback />}>
           <Routes>
@@ -162,6 +165,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
 
             <Route
               path="/my-courses"

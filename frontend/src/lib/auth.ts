@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   displayName: string;
   role: Role;
+  emailConfirmed?: boolean;
 }
 
 interface AuthState {
@@ -17,6 +18,7 @@ interface AuthState {
   user: AuthUser | null;
   setSession: (token: string, expiresAt: string, refreshToken: string, user: AuthUser) => void;
   setAccess: (token: string, expiresAt: string, refreshToken: string) => void;
+  setUser: (user: AuthUser) => void;
   clear: () => void;
   isAuthenticated: () => boolean;
 }
@@ -32,6 +34,7 @@ export const useAuth = create<AuthState>()(
         set({ token, expiresAt, refreshToken, user }),
       setAccess: (token, expiresAt, refreshToken) =>
         set({ token, expiresAt, refreshToken }),
+      setUser: (user) => set({ user }),
       clear: () => set({ token: null, refreshToken: null, expiresAt: null, user: null }),
       isAuthenticated: () => {
         const { token, expiresAt } = get();

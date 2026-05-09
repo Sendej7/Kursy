@@ -72,9 +72,10 @@ public class AuthController : ControllerBase
     public record GitHubLoginDto([Required] string Code);
     public record ForgotPasswordDto([Required, EmailAddress] string Email);
     public record ResetPasswordDto([Required] string Code, [Required, MinLength(8)] string NewPassword);
+    public record VerifyEmailDto([Required] string Code);
 
     public record AuthResponse(string Token, DateTime ExpiresAt, string RefreshToken, UserDto User);
-    public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role);
+    public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, bool EmailConfirmed);
 
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterDto dto, CancellationToken ct)
@@ -104,12 +105,76 @@ public class AuthController : ControllerBase
     {
         try
         {
-            await _email.SendAsync(EmailTemplates.Welcome(user.Email, user.DisplayName, AppBaseUrl), ct);
+            string? verifyUrl = null;
+            if (!user.EmailConfirmed)
+            {
+                var raw = await IssueEmailVerifyTokenAsync(user.Id, ct);
+                verifyUrl = $"{AppBaseUrl}/verify-email?code={Uri.EscapeDataString(raw)}";
+            }
+            await _email.SendAsync(EmailTemplates.Welcome(user.Email, user.DisplayName, AppBaseUrl, verifyUrl), ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
         }
+    }
+
+    private async Task<string> IssueEmailVerifyTokenAsync(Guid userId, CancellationToken ct)
+    {
+        var raw = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = userId,
+            TokenHash = "EMAILVERIFY:" + hash,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            UserAgent = "email-verify",
+        });
+        await _db.SaveChangesAsync(ct);
+        return raw;
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto, CancellationToken ct)
+    {
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(dto.Code)));
+        var token = await _db.RefreshTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.TokenHash == "EMAILVERIFY:" + hash, ct);
+
+        if (token is null || token.User is null
+            || token.RevokedAt is not null
+            || token.ExpiresAt < DateTime.UtcNow)
+        {
+            return BadRequest(new { error = "Link wygasł lub jest nieprawidłowy." });
+        }
+
+        token.User.EmailConfirmed = true;
+        token.RevokedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { ok = true });
+    }
+
+    [HttpPost("resend-verification")]
+    [Authorize]
+    public async Task<IActionResult> ResendVerification(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Unauthorized();
+        if (user.EmailConfirmed) return NoContent();
+
+        var raw = await IssueEmailVerifyTokenAsync(user.Id, ct);
+        var verifyUrl = $"{AppBaseUrl}/verify-email?code={Uri.EscapeDataString(raw)}";
+        try
+        {
+            await _email.SendAsync(EmailTemplates.VerifyEmail(user.Email, user.DisplayName, verifyUrl), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send verification email to {Email}", user.Email);
+        }
+        return Ok(new { ok = true });
     }
 
     [HttpPost("login")]
@@ -140,7 +205,7 @@ public class AuthController : ControllerBase
 
         return Ok(new AuthResponse(
             access, expires, newRaw,
-            new UserDto(token.User.Id, token.User.Email, token.User.DisplayName, token.User.Role)));
+            new UserDto(token.User.Id, token.User.Email, token.User.DisplayName, token.User.Role, token.User.EmailConfirmed)));
     }
 
     [HttpPost("google")]
@@ -184,6 +249,8 @@ public class AuthController : ControllerBase
                 GoogleId = payload.Subject,
                 AvatarUrl = payload.Picture,
                 Role = UserRole.Student,
+                // OAuth = email już potwierdzony przez providera (sprawdzone payload.EmailVerified powyżej).
+                EmailConfirmed = true,
             };
             _db.Users.Add(user);
         }
@@ -231,6 +298,8 @@ public class AuthController : ControllerBase
                 GitHubId = profile.Id,
                 AvatarUrl = profile.AvatarUrl,
                 Role = UserRole.Student,
+                // GitHub potwierdza primary verified email (sprawdzone wyżej).
+                EmailConfirmed = true,
             };
             _db.Users.Add(user);
         }
@@ -325,6 +394,6 @@ public class AuthController : ControllerBase
         var ua = Request.Headers.UserAgent.ToString();
         var (raw, _) = await _refresh.IssueAsync(user.Id, ua, ct);
         return new AuthResponse(access, expires, raw,
-            new UserDto(user.Id, user.Email, user.DisplayName, user.Role));
+            new UserDto(user.Id, user.Email, user.DisplayName, user.Role, user.EmailConfirmed));
     }
 }

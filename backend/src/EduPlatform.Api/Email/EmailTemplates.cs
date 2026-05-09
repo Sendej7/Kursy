@@ -43,8 +43,14 @@ public static class EmailTemplates
         return new EmailMessage(toEmail, toName, "Resetowanie hasła — Kursy.pl", html, text);
     }
 
-    public static EmailMessage Welcome(string toEmail, string toName, string appUrl)
+    public static EmailMessage Welcome(string toEmail, string toName, string appUrl, string? verifyUrl = null)
     {
+        var verifyBlock = verifyUrl is null ? string.Empty : $$"""
+          <div style="margin: 16px 0; padding: 16px; background: #fff8e1; border-left: 3px solid #f59e0b; font-size: 14px;">
+            <strong>Potwierdź email</strong> klikając w link, żeby aktywować pełen dostęp:<br>
+            <a href="{{verifyUrl}}">{{verifyUrl}}</a>
+          </div>
+        """;
         var html = $$"""
         <!doctype html>
         <html lang="pl">
@@ -53,6 +59,7 @@ public static class EmailTemplates
           <h1 style="font-size: 22px;">Witaj na Kursy.pl 👋</h1>
           <p>Cześć {{toName}},</p>
           <p>Cieszymy się, że dołączasz! Kursy.pl to <strong>polska platforma do nauki kodowania</strong> z interaktywnymi ćwiczeniami i mentorem AI po polsku.</p>
+          {{verifyBlock}}
           <p>Co dalej?</p>
           <ul>
             <li>Przejrzyj <a href="{{appUrl}}/courses">katalog kursów</a> — najlepiej zacząć od „Python od zera"</li>
@@ -72,5 +79,28 @@ public static class EmailTemplates
         """;
 
         return new EmailMessage(toEmail, toName, "Witaj na Kursy.pl 👋", html);
+    }
+
+    public static EmailMessage VerifyEmail(string toEmail, string toName, string verifyUrl)
+    {
+        var html = $$"""
+        <!doctype html>
+        <html lang="pl">
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111;">
+          <h1 style="font-size: 18px;">Potwierdź swój email</h1>
+          <p>Cześć {{toName}},</p>
+          <p>Kliknij w link poniżej, żeby potwierdzić, że ten adres email należy do Ciebie:</p>
+          <p style="margin: 24px 0;">
+            <a href="{{verifyUrl}}" style="display: inline-block; padding: 10px 16px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
+              Potwierdź email
+            </a>
+          </p>
+          <p style="font-size: 12px; color: #666;">Link wygasa za 7 dni.</p>
+        </body>
+        </html>
+        """;
+        var text = $"Cześć {toName}, potwierdź email klikając: {verifyUrl}";
+        return new EmailMessage(toEmail, toName, "Potwierdź email — Kursy.pl", html, text);
     }
 }
