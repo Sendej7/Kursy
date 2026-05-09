@@ -323,6 +323,34 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ sourceText, targetLanguage }),
       }),
+    proposeOutline: (sourceText: string, targetLanguage: CourseLanguage = 'Python', courseTitleHint?: string) =>
+      http<{
+        title: string;
+        description: string;
+        targetLanguage: string;
+        modules: {
+          title: string;
+          description: string;
+          lessons: { title: string; summary: string; topic: string }[];
+        }[];
+      }>('/author/outline', {
+        method: 'POST',
+        body: JSON.stringify({ sourceText, targetLanguage, courseTitleHint }),
+      }),
+    importOutline: (payload: {
+      title: string;
+      description: string;
+      language: CourseLanguage;
+      modules: {
+        title: string;
+        description: string;
+        lessons: { title: string; summary: string; topic: string }[];
+      }[];
+    }) =>
+      http<{ id: string; slug: string; modules: number; lessons: number }>('/author/import-outline', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
     analytics: (courseId: string) =>
       http<CourseAnalytics>(`/author/courses/${courseId}/analytics`),
     proposeImprovement: (lessonId: string) =>

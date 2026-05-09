@@ -11,6 +11,7 @@ import CourseEditor from './pages/author/CourseEditor';
 import LessonEditor from './pages/author/LessonEditor';
 import NewLesson from './pages/author/NewLesson';
 import GenerateFromText from './pages/author/GenerateFromText';
+import GenerateCourse from './pages/author/GenerateCourse';
 import Analytics from './pages/author/Analytics';
 import PendingCourses from './pages/admin/PendingCourses';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -145,6 +146,14 @@ export default function App() {
             element={
               <ProtectedRoute roles={['Author', 'Admin']}>
                 <GenerateFromText />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/author/generate-course"
+            element={
+              <ProtectedRoute roles={['Author', 'Admin']}>
+                <GenerateCourse />
               </ProtectedRoute>
             }
           />
