@@ -1,0 +1,5 @@
+# Pliki migracji EF Core są generowane (`dotnet ef migrations add`) z block-scoped namespace.
+# Wyłączamy reguły stylu, żeby auto-wygenerowane pliki nie blokowały buildu.
+[*.cs]
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_diagnostic.CS1591.severity = none

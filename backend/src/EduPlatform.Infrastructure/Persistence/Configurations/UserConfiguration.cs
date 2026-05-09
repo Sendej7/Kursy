@@ -15,6 +15,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(u => u.Email).IsUnique();
         builder.Property(u => u.GoogleId).HasMaxLength(64);
         builder.HasIndex(u => u.GoogleId).IsUnique().HasFilter("\"GoogleId\" IS NOT NULL");
+        builder.Property(u => u.GitHubId).HasMaxLength(64);
+        builder.HasIndex(u => u.GitHubId).IsUnique().HasFilter("\"GitHubId\" IS NOT NULL");
         builder.Property(u => u.AvatarUrl).HasMaxLength(512);
     }
 }

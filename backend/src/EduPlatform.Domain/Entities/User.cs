@@ -10,6 +10,8 @@ public class User : Entity
     public required string PasswordHash { get; set; }
     /// <summary>Google sub (stable user id). Null dla kont email/hasło.</summary>
     public string? GoogleId { get; set; }
+    /// <summary>GitHub user id (stable). Null dla kont email/hasło / Google.</summary>
+    public string? GitHubId { get; set; }
     public string? AvatarUrl { get; set; }
     public UserRole Role { get; set; } = UserRole.Student;
     public DateTime? SubscriptionUntil { get; set; }

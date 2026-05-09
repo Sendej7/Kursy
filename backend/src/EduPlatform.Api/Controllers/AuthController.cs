@@ -23,6 +23,8 @@ public class AuthController : ControllerBase
     private readonly RefreshTokenService _refresh;
     private readonly ICurrentUser _currentUser;
     private readonly GoogleAuthOptions _googleOptions;
+    private readonly GitHubAuthService _github;
+    private readonly GitHubAuthOptions _githubOptions;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -31,6 +33,8 @@ public class AuthController : ControllerBase
         RefreshTokenService refresh,
         ICurrentUser currentUser,
         IOptions<GoogleAuthOptions> googleOptions,
+        GitHubAuthService github,
+        IOptions<GitHubAuthOptions> githubOptions,
         ILogger<AuthController> logger)
     {
         _db = db;
@@ -38,6 +42,8 @@ public class AuthController : ControllerBase
         _refresh = refresh;
         _currentUser = currentUser;
         _googleOptions = googleOptions.Value;
+        _github = github;
+        _githubOptions = githubOptions.Value;
         _logger = logger;
     }
 
@@ -53,6 +59,7 @@ public class AuthController : ControllerBase
 
     public record RefreshDto([Required] string RefreshToken);
     public record GoogleLoginDto([Required] string IdToken);
+    public record GitHubLoginDto([Required] string Code);
     public record ForgotPasswordDto([Required, EmailAddress] string Email);
     public record ResetPasswordDto([Required] string Code, [Required, MinLength(8)] string NewPassword);
 
@@ -161,6 +168,50 @@ public class AuthController : ControllerBase
             // Link Google to existing email account on first Google sign-in.
             user.GoogleId ??= payload.Subject;
             user.AvatarUrl ??= payload.Picture;
+        }
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(await IssueResponseAsync(user, ct));
+    }
+
+    [HttpPost("github")]
+    public async Task<ActionResult<AuthResponse>> GitHub([FromBody] GitHubLoginDto dto, CancellationToken ct)
+    {
+        if (!_githubOptions.IsConfigured)
+        {
+            return StatusCode(503, new { error = "Logowanie GitHub nie jest skonfigurowane." });
+        }
+
+        var profile = await _github.ExchangeCodeAsync(dto.Code, ct);
+        if (profile is null)
+        {
+            return Unauthorized(new { error = "Wymiana code → token w GitHub nie powiodła się." });
+        }
+        if (string.IsNullOrEmpty(profile.Email))
+        {
+            return Unauthorized(new { error = "Konto GitHub nie udostępnia zweryfikowanego emaila." });
+        }
+
+        var emailLower = profile.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower || u.GitHubId == profile.Id, ct);
+
+        if (user is null)
+        {
+            user = new User
+            {
+                Email = emailLower,
+                DisplayName = profile.Name ?? profile.Login,
+                PasswordHash = string.Empty,
+                GitHubId = profile.Id,
+                AvatarUrl = profile.AvatarUrl,
+                Role = UserRole.Student,
+            };
+            _db.Users.Add(user);
+        }
+        else
+        {
+            user.GitHubId ??= profile.Id;
+            user.AvatarUrl ??= profile.AvatarUrl;
         }
         await _db.SaveChangesAsync(ct);
 

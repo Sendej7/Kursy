@@ -222,6 +222,13 @@ export const api = {
       auth: false,
     }),
 
+  githubLogin: (code: string) =>
+    http<AuthResponse>('/auth/github', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+      auth: false,
+    }),
+
   forgotPassword: (email: string) =>
     http<{ ok: boolean }>('/auth/forgot-password', {
       method: 'POST',

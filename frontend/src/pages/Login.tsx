@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
+import GitHubSignInButton from '@/components/GitHubSignInButton';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -50,8 +51,11 @@ export default function Login() {
     <section className="max-w-sm mx-auto px-4 py-16">
       <h1 className="text-2xl font-bold mb-6">Zaloguj się</h1>
 
-      <div className="mb-4 flex justify-center">
+      <div className="mb-3 flex justify-center">
         <GoogleSignInButton onCredential={onGoogle} />
+      </div>
+      <div className="mb-4">
+        <GitHubSignInButton intent="login" />
       </div>
 
       <div className="flex items-center gap-3 my-4 text-xs text-gray-500">
