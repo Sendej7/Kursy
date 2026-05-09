@@ -29,6 +29,7 @@ public class AuthController : ControllerBase
     private readonly IEmailSender _email;
     private readonly IConfiguration _config;
     private readonly TotpService _totp;
+    private readonly BackupCodesService _backupCodes;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -42,6 +43,7 @@ public class AuthController : ControllerBase
         IEmailSender email,
         IConfiguration config,
         TotpService totp,
+        BackupCodesService backupCodes,
         ILogger<AuthController> logger)
     {
         _db = db;
@@ -54,6 +56,7 @@ public class AuthController : ControllerBase
         _email = email;
         _config = config;
         _totp = totp;
+        _backupCodes = backupCodes;
         _logger = logger;
     }
 
@@ -237,7 +240,18 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Sesja 2FA wygasła — zaloguj się ponownie." });
         }
 
-        if (!_totp.Verify(user.TotpSecret, dto.Code))
+        var totpOk = _totp.Verify(user.TotpSecret, dto.Code);
+        var backupOk = false;
+        if (!totpOk)
+        {
+            // Druga szansa: backup code (8-znakowy alfanumerczny).
+            backupOk = _backupCodes.TryConsume(user, dto.Code, out var updatedJson);
+            if (backupOk)
+            {
+                user.BackupCodesHashJson = updatedJson;
+            }
+        }
+        if (!totpOk && !backupOk)
         {
             return Unauthorized(new { error = "Nieprawidłowy kod 2FA." });
         }
@@ -485,8 +499,45 @@ public class AuthController : ControllerBase
         }
 
         user.TwoFactorEnabled = true;
+
+        // Pierwszy zestaw backup codes — pokazany jednorazowo. Userzy mogą je później
+        // zregenerować przez /2fa/backup-codes (poprzedni zestaw jest invalidowany).
+        var (raw, json) = _backupCodes.GenerateAndHash();
+        user.BackupCodesHashJson = json;
+
         await _db.SaveChangesAsync(ct);
-        return NoContent();
+        return Ok(new { backupCodes = raw });
+    }
+
+    [HttpPost("2fa/backup-codes")]
+    [Authorize]
+    public async Task<IActionResult> RegenerateBackupCodes([FromBody] TotpVerifyDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.TwoFactorEnabled || string.IsNullOrEmpty(user.TotpSecret))
+        {
+            return BadRequest(new { error = "2FA musi być włączone." });
+        }
+        if (!_totp.Verify(user.TotpSecret, dto.Code))
+        {
+            return BadRequest(new { error = "Nieprawidłowy kod 2FA." });
+        }
+
+        var (raw, json) = _backupCodes.GenerateAndHash();
+        user.BackupCodesHashJson = json;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { backupCodes = raw });
+    }
+
+    [HttpGet("2fa/backup-codes/remaining")]
+    [Authorize]
+    public async Task<IActionResult> BackupCodesRemaining(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Unauthorized();
+        return Ok(new { remaining = _backupCodes.RemainingCount(user.BackupCodesHashJson) });
     }
 
     [HttpPost("2fa/disable")]
@@ -506,6 +557,7 @@ public class AuthController : ControllerBase
 
         user.TwoFactorEnabled = false;
         user.TotpSecret = null;
+        user.BackupCodesHashJson = null;
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

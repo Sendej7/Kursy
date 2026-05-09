@@ -11,10 +11,19 @@ export default function TwoFactorSetup() {
   const [setup, setSetup] = useState<{ secret: string; otpAuthUri: string } | null>(null);
   const [code, setCode] = useState('');
   const [disablePrompt, setDisablePrompt] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [regenPrompt, setRegenPrompt] = useState(false);
+  const [regenCode, setRegenCode] = useState('');
 
   const status = useQuery({
     queryKey: ['2fa', 'status'],
     queryFn: () => api.twoFactor.status(),
+  });
+
+  const remaining = useQuery({
+    queryKey: ['2fa', 'backup-remaining'],
+    queryFn: () => api.twoFactor.backupCodesRemaining(),
+    enabled: status.data?.enabled === true,
   });
 
   const startSetup = useMutation({
@@ -25,15 +34,48 @@ export default function TwoFactorSetup() {
 
   const enable = useMutation({
     mutationFn: () => api.twoFactor.enable(code),
-    onSuccess: () => {
-      toast.success('2FA włączone — odtąd logowanie wymaga kodu z aplikacji.');
+    onSuccess: (data) => {
+      toast.success('2FA włączone — zapisz kody awaryjne!');
+      setBackupCodes(data.backupCodes);
       setSetup(null);
       setCode('');
       qc.invalidateQueries({ queryKey: ['2fa', 'status'] });
+      qc.invalidateQueries({ queryKey: ['2fa', 'backup-remaining'] });
       if (auth.user) auth.setUser({ ...auth.user, twoFactorEnabled: true });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Nieprawidłowy kod.'),
   });
+
+  const regenerate = useMutation({
+    mutationFn: () => api.twoFactor.regenerateBackupCodes(regenCode),
+    onSuccess: (data) => {
+      toast.success('Wygenerowane nowe kody — zapisz je! Stare przestają działać.');
+      setBackupCodes(data.backupCodes);
+      setRegenPrompt(false);
+      setRegenCode('');
+      qc.invalidateQueries({ queryKey: ['2fa', 'backup-remaining'] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Nieprawidłowy kod.'),
+  });
+
+  function downloadBackupCodes() {
+    if (!backupCodes) return;
+    const content =
+      'Kody awaryjne 2FA — Kursy.pl\n' +
+      `Wygenerowane: ${new Date().toLocaleString('pl-PL')}\n` +
+      `Konto: ${auth.user?.email ?? '?'}\n\n` +
+      backupCodes.map((c, i) => `${i + 1}. ${c}`).join('\n') +
+      '\n\nKażdy kod jest jednorazowy. Trzymaj w bezpiecznym miejscu.\n';
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kursy-pl-backup-codes-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   const disable = useMutation({
     mutationFn: () => api.twoFactor.disable(code),
@@ -48,6 +90,50 @@ export default function TwoFactorSetup() {
   });
 
   const enabled = status.data?.enabled ?? false;
+
+  // Modal-like blok z 10 kodami awaryjnymi (po enable lub regenerate).
+  if (backupCodes) {
+    return (
+      <div className="border border-amber-300 bg-amber-50 rounded-lg p-4 space-y-3">
+        <p className="font-semibold">🔐 Twoje kody awaryjne (jednorazowe)</p>
+        <p className="text-xs text-gray-700">
+          Zapisz je teraz — każdy z nich można użyć zamiast kodu z apki, jeśli zgubisz telefon.
+          <strong className="block mt-1">Kody pokażą się tylko raz.</strong>
+        </p>
+        <ul className="grid grid-cols-2 gap-1 font-mono text-sm bg-white border rounded p-3">
+          {backupCodes.map((c, i) => (
+            <li key={i}>
+              <span className="text-gray-400 mr-1">{i + 1}.</span>
+              <span>{c}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2">
+          <button
+            onClick={downloadBackupCodes}
+            className="px-3 py-1.5 bg-black text-white rounded-md text-sm"
+          >
+            Pobierz plik .txt
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(backupCodes.join('\n')).catch(() => undefined);
+              toast.success('Skopiowane do schowka.');
+            }}
+            className="px-3 py-1.5 border rounded-md text-sm"
+          >
+            Skopiuj
+          </button>
+          <button
+            onClick={() => setBackupCodes(null)}
+            className="px-3 py-1.5 text-sm text-gray-600"
+          >
+            Zapisałem, zamknij
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -111,15 +197,68 @@ export default function TwoFactorSetup() {
         </div>
       )}
 
-      {enabled && !disablePrompt && (
+      {enabled && !disablePrompt && !regenPrompt && (
         <div className="space-y-2">
           <p className="text-sm text-green-700">✓ 2FA aktywne — logowanie wymaga kodu z apki.</p>
-          <button
-            onClick={() => setDisablePrompt(true)}
-            className="px-3 py-1.5 border rounded-md text-sm text-red-700 hover:bg-red-50"
-          >
-            Wyłącz 2FA
-          </button>
+          {remaining.data && (
+            <p className="text-xs text-gray-600">
+              Pozostało {remaining.data.remaining} kodów awaryjnych.
+              {remaining.data.remaining <= 3 && (
+                <span className="text-amber-700 ml-1">
+                  — wygeneruj nowe, zanim Ci się skończą.
+                </span>
+              )}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setRegenPrompt(true)}
+              className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+            >
+              Wygeneruj nowe kody awaryjne
+            </button>
+            <button
+              onClick={() => setDisablePrompt(true)}
+              className="px-3 py-1.5 border rounded-md text-sm text-red-700 hover:bg-red-50"
+            >
+              Wyłącz 2FA
+            </button>
+          </div>
+        </div>
+      )}
+
+      {enabled && regenPrompt && (
+        <div className="space-y-2">
+          <p className="text-sm">
+            Wpisz aktualny kod 2FA, żeby wygenerować nowe kody awaryjne. <strong>Stare przestaną
+            działać.</strong>
+          </p>
+          <div className="flex gap-2">
+            <input
+              inputMode="numeric"
+              maxLength={6}
+              className="border rounded-md px-2 py-1 text-sm font-mono w-28 text-center"
+              value={regenCode}
+              onChange={(e) => setRegenCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+            />
+            <button
+              onClick={() => regenerate.mutate()}
+              disabled={regenCode.length !== 6 || regenerate.isPending}
+              className="px-3 py-1 bg-black text-white rounded-md text-sm disabled:opacity-50"
+            >
+              {regenerate.isPending ? 'Generuję…' : 'Wygeneruj'}
+            </button>
+            <button
+              onClick={() => {
+                setRegenPrompt(false);
+                setRegenCode('');
+              }}
+              className="px-3 py-1 text-sm text-gray-500"
+            >
+              Anuluj
+            </button>
+          </div>
         </div>
       )}
 

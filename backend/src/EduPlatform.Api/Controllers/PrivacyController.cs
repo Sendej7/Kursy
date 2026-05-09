@@ -163,6 +163,7 @@ public class PrivacyController : ControllerBase
         user.AvatarUrl = null;
         user.TotpSecret = null;
         user.TwoFactorEnabled = false;
+        user.BackupCodesHashJson = null;
         user.IsDeleted = true;
         user.DeletedAt = DateTime.UtcNow;
 

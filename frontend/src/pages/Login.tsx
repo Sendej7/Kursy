@@ -75,25 +75,25 @@ export default function Login() {
       <section className="max-w-sm mx-auto px-4 py-16">
         <h1 className="text-2xl font-bold mb-3">Weryfikacja 2FA</h1>
         <p className="text-sm text-gray-600 mb-6">
-          Otwórz aplikację autoryzacyjną (Google Authenticator, 1Password, Bitwarden) i wpisz 6-cyfrowy kod dla{' '}
-          <strong>{twoFactor.email}</strong>.
+          Wpisz 6-cyfrowy kod z aplikacji autoryzacyjnej dla <strong>{twoFactor.email}</strong>,
+          albo 8-znakowy kod awaryjny.
         </p>
         <form onSubmit={submitTwoFactor} className="space-y-3">
           <input
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={6}
+            // Akceptujemy zarówno 6 cyfr (TOTP) jak i 8 znaków A-Z + 2-9 (backup).
+            inputMode="text"
+            maxLength={9}
             autoComplete="one-time-code"
             autoFocus
-            placeholder="123456"
+            placeholder="123456 lub ABCD2345"
             className="w-full text-center text-2xl tracking-widest font-mono border rounded-md px-3 py-2"
             value={twoFactorCode}
-            onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => setTwoFactorCode(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''))}
           />
           {error && <p className="text-red-600 text-sm">{error}</p>}
           <button
             type="submit"
-            disabled={pending || twoFactorCode.length !== 6}
+            disabled={pending || twoFactorCode.length < 6}
             className="w-full px-3 py-2 bg-black text-white rounded-md text-sm font-medium disabled:opacity-50"
           >
             {pending ? 'Sprawdzam…' : 'Zatwierdź'}
