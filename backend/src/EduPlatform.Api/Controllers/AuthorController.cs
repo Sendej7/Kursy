@@ -571,4 +571,109 @@ public class AuthorController : ControllerBase
         while (slug.Contains("--")) slug = slug.Replace("--", "-");
         return string.IsNullOrEmpty(slug) ? Guid.NewGuid().ToString()[..8] : slug;
     }
+
+    [HttpPost("courses/{id:guid}/duplicate")]
+    public async Task<IActionResult> DuplicateCourse(Guid id, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+
+        var source = await _db.Courses
+            .Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.Exercise)
+            .FirstOrDefaultAsync(c => c.Id == id && c.AuthorId == userId, ct);
+        if (source is null) return NotFound();
+
+        var slug = await UniqueSlugAsync(source.Slug + "-kopia", ct);
+        var copy = new Course
+        {
+            Title = source.Title + " (kopia)",
+            Slug = slug,
+            Description = source.Description,
+            Language = source.Language,
+            Visibility = CourseVisibility.Draft,  // kopia zawsze startuje jako draft
+            PriceMonthlyPln = source.PriceMonthlyPln,
+            AuthorId = userId,
+            Tags = source.Tags.ToList(),
+            Modules = source.Modules.OrderBy(m => m.Order).Select(m => new Module
+            {
+                Title = m.Title,
+                Order = m.Order,
+                Lessons = m.Lessons.OrderBy(l => l.Order).Select(l => new Lesson
+                {
+                    Title = l.Title,
+                    Order = l.Order,
+                    Type = l.Type,
+                    ContentMarkdown = l.ContentMarkdown,
+                    Exercise = l.Exercise is null ? null : new Exercise
+                    {
+                        Prompt = l.Exercise.Prompt,
+                        StarterCode = l.Exercise.StarterCode,
+                        SolutionCode = l.Exercise.SolutionCode,
+                        TestsCode = l.Exercise.TestsCode,
+                        Hints = l.Exercise.Hints.ToList(),
+                    },
+                }).ToList(),
+            }).ToList(),
+        };
+
+        _db.Courses.Add(copy);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { copy.Id, copy.Slug });
+    }
+
+    public record ReorderModulesDto(Guid CourseId, Guid[] ModuleIds);
+    public record ReorderLessonsDto(Guid ModuleId, Guid[] LessonIds);
+
+    [HttpPatch("modules/reorder")]
+    public async Task<IActionResult> ReorderModules([FromBody] ReorderModulesDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var ownsCourse = await _db.Courses.AnyAsync(c => c.Id == dto.CourseId && c.AuthorId == userId, ct);
+        if (!ownsCourse) return NotFound();
+
+        var modules = await _db.Modules
+            .Where(m => m.CourseId == dto.CourseId)
+            .ToListAsync(ct);
+        // Reset order według podanej kolejności; zignoruj moduły spoza listy.
+        var idx = 1;
+        foreach (var moduleId in dto.ModuleIds)
+        {
+            var m = modules.FirstOrDefault(x => x.Id == moduleId);
+            if (m is not null) m.Order = idx++;
+        }
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPatch("lessons/reorder")]
+    public async Task<IActionResult> ReorderLessons([FromBody] ReorderLessonsDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var ownsModule = await _db.Modules
+            .AnyAsync(m => m.Id == dto.ModuleId && m.Course!.AuthorId == userId, ct);
+        if (!ownsModule) return NotFound();
+
+        var lessons = await _db.Lessons
+            .Where(l => l.ModuleId == dto.ModuleId)
+            .ToListAsync(ct);
+        var idx = 1;
+        foreach (var lessonId in dto.LessonIds)
+        {
+            var l = lessons.FirstOrDefault(x => x.Id == lessonId);
+            if (l is not null) l.Order = idx++;
+        }
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    private async Task<string> UniqueSlugAsync(string baseSlug, CancellationToken ct)
+    {
+        var slug = Slugify(baseSlug);
+        var n = 1;
+        while (await _db.Courses.AnyAsync(c => c.Slug == slug, ct))
+        {
+            n++;
+            slug = $"{Slugify(baseSlug)}-{n}";
+        }
+        return slug;
+    }
 }
