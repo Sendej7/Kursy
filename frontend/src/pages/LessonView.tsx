@@ -128,6 +128,23 @@ export default function LessonView() {
 
   const lessonContext = useMemo(() => lesson?.contentMarkdown ?? '', [lesson]);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const isMod = e.ctrlKey || e.metaKey;
+      if (isMod && e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          void onSubmit();
+        } else {
+          void onRun();
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, lesson?.exercise?.id, runStatus]);
+
   if (isLoading) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-500">Ładowanie lekcji…</p>;
   if (error || !lesson) {
     return <p className="max-w-3xl mx-auto px-4 py-10 text-red-600">Nie znaleziono lekcji.</p>;
@@ -202,6 +219,13 @@ export default function LessonView() {
               {runStatus === 'submitting' ? 'Sprawdzam…' : 'Sprawdź'}
             </button>
             {allPassed && <span className="text-green-700 text-sm self-center">✓ ukończona</span>}
+            <span className="ml-auto self-center text-xs text-gray-400 hidden sm:inline">
+              <kbd className="px-1 py-0.5 border rounded">Ctrl</kbd>+
+              <kbd className="px-1 py-0.5 border rounded">Enter</kbd> uruchom ·
+              <kbd className="ml-1 px-1 py-0.5 border rounded">Ctrl</kbd>+
+              <kbd className="px-1 py-0.5 border rounded">Shift</kbd>+
+              <kbd className="px-1 py-0.5 border rounded">Enter</kbd> sprawdź
+            </span>
           </div>
 
           <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 min-h-[80px] whitespace-pre-wrap overflow-x-auto">

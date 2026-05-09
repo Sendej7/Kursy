@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageReference Include="FluentAssertions" Version="6.12.2" />
@@ -16,6 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EduPlatform.Domain\EduPlatform.Domain.csproj" />
+    <ProjectReference Include="..\..\src\EduPlatform.Api\EduPlatform.Api.csproj" />
+    <ProjectReference Include="..\..\src\EduPlatform.Infrastructure\EduPlatform.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

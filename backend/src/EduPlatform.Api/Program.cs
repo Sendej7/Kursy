@@ -95,3 +95,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+// Expose for WebApplicationFactory<Program> in tests.
+public partial class Program;
