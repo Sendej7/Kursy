@@ -460,6 +460,19 @@ export const api = {
   toggleFavorite: (courseId: string) =>
     http<{ favorited: boolean }>(`/courses/${courseId}/favorite`, { method: 'POST' }),
   myFavorites: () => http<FavoriteCourse[]>('/courses/favorites/mine'),
+  aiHistory: (take = 30) =>
+    http<
+      {
+        id: string;
+        lessonId: string | null;
+        lessonTitle: string | null;
+        courseSlug: string | null;
+        courseTitle: string | null;
+        question: string;
+        answer: string;
+        createdAt: string;
+      }[]
+    >(`/ai/history?take=${take}`),
 
   reviews: {
     list: (courseId: string) => http<CourseReviewsResponse>(`/courses/${courseId}/reviews`, { auth: false }),
