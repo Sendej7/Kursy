@@ -9,6 +9,7 @@ import Toaster from './components/Toaster';
 import EmailVerifyBanner from './components/EmailVerifyBanner';
 import NotificationsBell from './components/NotificationsBell';
 import SearchBar from './components/SearchBar';
+import CookieBanner from './components/CookieBanner';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -24,6 +25,8 @@ const QuestionDetail = lazy(() => import('./pages/QuestionDetail'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 const MyFavorites = lazy(() => import('./pages/MyFavorites'));
 const MyAiHistory = lazy(() => import('./pages/MyAiHistory'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const MyCertificates = lazy(() => import('./pages/MyCertificates'));
 const CertificateDetail = lazy(() => import('./pages/CertificateDetail'));
@@ -192,6 +195,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
 
             <Route
               path="/my-courses"
@@ -319,10 +324,17 @@ export default function App() {
           </Routes>
         </Suspense>
       </main>
-      <footer className="border-t text-xs text-gray-500 py-3 text-center">
-        Kursy — polska platforma do nauki kodowania.
+      <footer className="border-t text-xs text-gray-500 py-3 text-center space-x-3">
+        <span>Kursy — polska platforma do nauki kodowania.</span>
+        <Link to="/terms" className="hover:underline">
+          Regulamin
+        </Link>
+        <Link to="/privacy" className="hover:underline">
+          Prywatność
+        </Link>
       </footer>
       <Toaster />
+      <CookieBanner />
     </div>
   );
 }

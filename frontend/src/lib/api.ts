@@ -398,6 +398,15 @@ export const api = {
       }),
   },
 
+  sessions: {
+    list: () =>
+      http<{ id: string; userAgent: string | null; createdAt: string; expiresAt: string }[]>(
+        '/me/sessions',
+      ),
+    revoke: (id: string) => http<void>(`/me/sessions/${id}/revoke`, { method: 'POST' }),
+    revokeOthers: () => http<void>('/me/sessions/revoke-others', { method: 'POST' }),
+  },
+
   privacy: {
     /** Pobiera JSON dump i zapisuje plik użytkownikowi (RODO art. 15). */
     exportData: async () => {
