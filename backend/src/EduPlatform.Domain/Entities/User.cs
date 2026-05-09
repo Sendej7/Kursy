@@ -15,4 +15,5 @@ public class User : Entity
     public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
     public ICollection<LessonProgress> LessonProgresses { get; set; } = new List<LessonProgress>();
     public ICollection<AiInteraction> AiInteractions { get; set; } = new List<AiInteraction>();
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }

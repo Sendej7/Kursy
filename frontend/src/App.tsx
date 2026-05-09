@@ -14,15 +14,22 @@ import GenerateFromText from './pages/author/GenerateFromText';
 import Analytics from './pages/author/Analytics';
 import PendingCourses from './pages/admin/PendingCourses';
 import ProtectedRoute from './components/ProtectedRoute';
+import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
 function Header() {
   const auth = useAuth();
   const navigate = useNavigate();
 
-  function logout() {
-    auth.clear();
-    navigate('/');
+  async function logout() {
+    try {
+      await api.logout();
+    } catch {
+      /* ignore */
+    } finally {
+      auth.clear();
+      navigate('/');
+    }
   }
 
   return (

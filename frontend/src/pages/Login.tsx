@@ -18,7 +18,7 @@ export default function Login() {
     setPending(true);
     try {
       const res = await api.login(email, password);
-      setSession(res.token, res.expiresAt, res.user);
+      setSession(res.token, res.expiresAt, res.refreshToken, res.user);
       navigate(location.state?.from ?? '/courses', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');

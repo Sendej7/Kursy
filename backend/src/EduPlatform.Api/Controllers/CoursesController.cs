@@ -35,10 +35,26 @@ public class CoursesController : ControllerBase
     public record LessonSummaryDto(Guid Id, string Title, int Order, LessonType Type, bool IsCompleted);
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<CourseListItem>>> List(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<CourseListItem>>> List(
+        [FromQuery] string? q,
+        [FromQuery] CourseLanguage? language,
+        CancellationToken ct = default)
     {
-        var courses = await _db.Courses
-            .Where(c => c.Visibility == CourseVisibility.Public)
+        var query = _db.Courses.Where(c => c.Visibility == CourseVisibility.Public);
+
+        if (language is not null)
+        {
+            query = query.Where(c => c.Language == language);
+        }
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var pattern = $"%{q.Trim()}%";
+            query = query.Where(c =>
+                EF.Functions.ILike(c.Title, pattern) ||
+                EF.Functions.ILike(c.Description, pattern));
+        }
+
+        var courses = await query
             .OrderByDescending(c => c.CreatedAt)
             .Select(c => new CourseListItem(c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln))
             .ToListAsync(ct);

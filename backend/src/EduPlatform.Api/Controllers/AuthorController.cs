@@ -181,6 +181,7 @@ public class AuthorController : ControllerBase
     }
 
     public record CommonError(string Description, int Occurrences);
+    public record CommonQuestion(string Question, int Occurrences);
     public record LessonAnalyticsDto(
         Guid LessonId,
         string Title,
@@ -188,7 +189,8 @@ public class AuthorController : ControllerBase
         int Completions,
         double CompletionRate,
         double AvgAttempts,
-        IReadOnlyList<CommonError> CommonErrors);
+        IReadOnlyList<CommonError> CommonErrors,
+        IReadOnlyList<CommonQuestion> CommonQuestions);
 
     [HttpGet("courses/{courseId:guid}/analytics")]
     public async Task<IActionResult> Analytics(Guid courseId, CancellationToken ct)
@@ -228,6 +230,18 @@ public class AuthorController : ControllerBase
                 .Take(5)
                 .ToList();
 
+            var questions = await _db.AiInteractions
+                .Where(a => a.LessonId == l.Id)
+                .Select(a => a.Question)
+                .ToListAsync(ct);
+
+            var questionBuckets = questions
+                .GroupBy(NormalizeQuestion)
+                .Select(g => new CommonQuestion(g.Key, g.Count()))
+                .OrderByDescending(q => q.Occurrences)
+                .Take(5)
+                .ToList();
+
             output.Add(new LessonAnalyticsDto(
                 l.Id,
                 l.Title,
@@ -235,10 +249,88 @@ public class AuthorController : ControllerBase
                 completions,
                 enrolled == 0 ? 0 : (double)completions / enrolled,
                 avgAttempts,
-                errorBuckets));
+                errorBuckets,
+                questionBuckets));
         }
 
         return Ok(new { courseId, enrolled, lessons = output });
+    }
+
+    [HttpPost("lessons/{id:guid}/improve")]
+    public async Task<IActionResult> ProposeImprovement(Guid id, CancellationToken ct)
+    {
+        var lesson = await _db.Lessons
+            .Include(l => l.Exercise)
+            .Include(l => l.Module)
+                .ThenInclude(m => m!.Course)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null || lesson.Module?.Course?.AuthorId != _currentUser.Id) return NotFound();
+
+        var courseId = lesson.Module!.CourseId;
+        var enrolled = await _db.CourseEnrollments.CountAsync(e => e.CourseId == courseId, ct);
+        var completions = await _db.LessonProgresses.CountAsync(p => p.LessonId == id && p.Completed, ct);
+
+        var subs = lesson.Exercise is null
+            ? new List<Submission>()
+            : await _db.Submissions.Where(s => s.ExerciseId == lesson.Exercise.Id).ToListAsync(ct);
+
+        var attemptsByUser = subs.GroupBy(s => s.UserId).ToList();
+        var avgAttempts = attemptsByUser.Count == 0 ? 0 : attemptsByUser.Average(g => g.Count());
+
+        var topErrors = subs
+            .Where(s => !s.Passed && !string.IsNullOrEmpty(s.ErrorMessage))
+            .GroupBy(s => NormalizeError(s.ErrorMessage!))
+            .Select(g => (Description: g.Key, Occurrences: g.Count()))
+            .OrderByDescending(e => e.Occurrences)
+            .Take(5)
+            .ToList();
+
+        var questions = await _db.AiInteractions
+            .Where(a => a.LessonId == id)
+            .Select(a => a.Question)
+            .ToListAsync(ct);
+
+        var topQuestions = questions
+            .GroupBy(NormalizeQuestion)
+            .Select(g => (Question: g.Key, Occurrences: g.Count()))
+            .OrderByDescending(q => q.Occurrences)
+            .Take(5)
+            .ToList();
+
+        var ctx = new LessonImprovementContext(
+            CurrentTitle: lesson.Title,
+            CurrentMarkdown: lesson.ContentMarkdown,
+            CurrentStarterCode: lesson.Exercise?.StarterCode ?? string.Empty,
+            CurrentTestsCode: lesson.Exercise?.TestsCode ?? string.Empty,
+            CompletionRate: enrolled == 0 ? 0 : (double)completions / enrolled,
+            AvgAttempts: avgAttempts,
+            TopErrors: topErrors,
+            TopQuestions: topQuestions);
+
+        var improvement = await _ai.ProposeImprovementAsync(ctx, ct);
+        return Ok(improvement);
+    }
+
+    public record ApplyImprovementDto(string ContentMarkdown, string StarterCode, string SolutionCode, string TestsCode, List<string> Hints);
+
+    [HttpPut("lessons/{id:guid}/apply-improvement")]
+    public async Task<IActionResult> ApplyImprovement(Guid id, [FromBody] ApplyImprovementDto dto, CancellationToken ct)
+    {
+        var lesson = await _db.Lessons
+            .Include(l => l.Exercise)
+            .Include(l => l.Module)
+                .ThenInclude(m => m!.Course)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null || lesson.Module?.Course?.AuthorId != _currentUser.Id) return NotFound();
+
+        lesson.ContentMarkdown = dto.ContentMarkdown;
+        lesson.Exercise ??= new Exercise { LessonId = lesson.Id };
+        lesson.Exercise.StarterCode = dto.StarterCode;
+        lesson.Exercise.SolutionCode = dto.SolutionCode;
+        lesson.Exercise.TestsCode = dto.TestsCode;
+        lesson.Exercise.Hints = dto.Hints;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     private async Task<Course?> GetOwnedCourse(Guid id, CancellationToken ct)
@@ -251,6 +343,15 @@ public class AuthorController : ControllerBase
     {
         var firstLine = raw.Split('\n').FirstOrDefault()?.Trim() ?? raw;
         return firstLine.Length > 120 ? firstLine[..120] : firstLine;
+    }
+
+    private static string NormalizeQuestion(string raw)
+    {
+        var trimmed = raw.Trim().ToLowerInvariant();
+        // Lekka heurystyka: usuń znaki interpunkcji końcowe, zwiń whitespace.
+        trimmed = System.Text.RegularExpressions.Regex.Replace(trimmed, @"\s+", " ");
+        trimmed = trimmed.TrimEnd('?', '.', '!');
+        return trimmed.Length > 120 ? trimmed[..120] : trimmed;
     }
 
     private static string Slugify(string input)

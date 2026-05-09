@@ -60,7 +60,14 @@ export interface LessonDetail {
 export interface AuthResponse {
   token: string;
   expiresAt: string;
+  refreshToken: string;
   user: AuthUser;
+}
+
+export interface LessonImprovement {
+  diagnosis: string;
+  suggestions: string[];
+  rewrittenLesson: GeneratedLesson | null;
 }
 
 export interface AuthorCourseRow {
@@ -81,6 +88,7 @@ export interface LessonAnalyticsRow {
   completionRate: number;
   avgAttempts: number;
   commonErrors: { description: string; occurrences: number }[];
+  commonQuestions: { question: string; occurrences: number }[];
 }
 
 export interface CourseAnalytics {
@@ -104,7 +112,39 @@ class ApiError extends Error {
   }
 }
 
-async function http<T>(path: string, init?: RequestInit & { auth?: boolean }): Promise<T> {
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+  const state = useAuth.getState();
+  if (!state.refreshToken) return false;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: state.refreshToken }),
+      });
+      if (!res.ok) {
+        useAuth.getState().clear();
+        return false;
+      }
+      const body = (await res.json()) as AuthResponse;
+      useAuth.getState().setAccess(body.token, body.expiresAt, body.refreshToken);
+      return true;
+    } catch {
+      useAuth.getState().clear();
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+async function http<T>(path: string, init?: RequestInit & { auth?: boolean; _retry?: boolean }): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   Object.assign(headers, init?.headers ?? {});
 
@@ -116,17 +156,22 @@ async function http<T>(path: string, init?: RequestInit & { auth?: boolean }): P
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
 
-  if (res.status === 401) {
+  if (res.status === 401 && wantsAuth && !init?._retry) {
+    const ok = await tryRefresh();
+    if (ok) {
+      return http<T>(path, { ...init, _retry: true });
+    }
     useAuth.getState().clear();
   }
 
-  const ct = res.headers.get('content-type') ?? '';
-  const body = ct.includes('application/json') ? await res.json().catch(() => null) : null;
+  const ctype = res.headers.get('content-type') ?? '';
+  const body = ctype.includes('application/json') ? await res.json().catch(() => null) : null;
 
   if (!res.ok) {
-    const msg = (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string')
-      ? body.error
-      : `${res.status} ${res.statusText}`;
+    const msg =
+      body && typeof body === 'object' && 'error' in body && typeof (body as { error: unknown }).error === 'string'
+        ? (body as { error: string }).error
+        : `${res.status} ${res.statusText}`;
     throw new ApiError(res.status, msg, body);
   }
   return body as T;
@@ -149,8 +194,16 @@ export const api = {
       auth: false,
     }),
 
+  logout: () => http<void>('/auth/logout', { method: 'POST' }),
+
   // courses
-  listCourses: () => http<CourseListItem[]>('/courses'),
+  listCourses: (params?: { q?: string; language?: CourseLanguage }) => {
+    const search = new URLSearchParams();
+    if (params?.q) search.set('q', params.q);
+    if (params?.language) search.set('language', params.language);
+    const qs = search.toString();
+    return http<CourseListItem[]>(`/courses${qs ? `?${qs}` : ''}`, { auth: false });
+  },
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
   enrollById: (id: string) => http<void>(`/courses/${id}/enroll`, { method: 'POST' }),
   enrollByCode: (accessCode: string) =>
@@ -272,6 +325,22 @@ export const api = {
       }),
     analytics: (courseId: string) =>
       http<CourseAnalytics>(`/author/courses/${courseId}/analytics`),
+    proposeImprovement: (lessonId: string) =>
+      http<LessonImprovement>(`/author/lessons/${lessonId}/improve`, { method: 'POST' }),
+    applyImprovement: (
+      lessonId: string,
+      payload: {
+        contentMarkdown: string;
+        starterCode: string;
+        solutionCode: string;
+        testsCode: string;
+        hints: string[];
+      },
+    ) =>
+      http<void>(`/author/lessons/${lessonId}/apply-improvement`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
   },
 
   // admin
