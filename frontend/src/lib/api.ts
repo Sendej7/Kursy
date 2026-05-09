@@ -103,6 +103,16 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface TwoFactorChallenge {
+  pending2fa: true;
+  pendingToken: string;
+  email: string;
+}
+
+export function isTwoFactorChallenge(r: AuthResponse | TwoFactorChallenge): r is TwoFactorChallenge {
+  return (r as TwoFactorChallenge).pending2fa === true;
+}
+
 export interface LessonImprovement {
   diagnosis: string;
   suggestions: string[];
@@ -227,11 +237,28 @@ export const api = {
       auth: false,
     }),
   login: (email: string, password: string) =>
-    http<AuthResponse>('/auth/login', {
+    http<AuthResponse | TwoFactorChallenge>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
       auth: false,
     }),
+
+  loginTwoFactor: (email: string, pendingToken: string, code: string) =>
+    http<AuthResponse>('/auth/login-2fa', {
+      method: 'POST',
+      body: JSON.stringify({ email, pendingToken, code }),
+      auth: false,
+    }),
+
+  twoFactor: {
+    status: () => http<{ enabled: boolean }>('/auth/2fa/status'),
+    setup: () =>
+      http<{ secret: string; otpAuthUri: string }>('/auth/2fa/setup', { method: 'POST' }),
+    enable: (code: string) =>
+      http<void>('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
+    disable: (code: string) =>
+      http<void>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) }),
+  },
 
   logout: () => http<void>('/auth/logout', { method: 'POST' }),
 

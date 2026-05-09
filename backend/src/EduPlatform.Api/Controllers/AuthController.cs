@@ -28,6 +28,7 @@ public class AuthController : ControllerBase
     private readonly GitHubAuthOptions _githubOptions;
     private readonly IEmailSender _email;
     private readonly IConfiguration _config;
+    private readonly TotpService _totp;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -40,6 +41,7 @@ public class AuthController : ControllerBase
         IOptions<GitHubAuthOptions> githubOptions,
         IEmailSender email,
         IConfiguration config,
+        TotpService totp,
         ILogger<AuthController> logger)
     {
         _db = db;
@@ -51,6 +53,7 @@ public class AuthController : ControllerBase
         _githubOptions = githubOptions.Value;
         _email = email;
         _config = config;
+        _totp = totp;
         _logger = logger;
     }
 
@@ -73,9 +76,12 @@ public class AuthController : ControllerBase
     public record ForgotPasswordDto([Required, EmailAddress] string Email);
     public record ResetPasswordDto([Required] string Code, [Required, MinLength(8)] string NewPassword);
     public record VerifyEmailDto([Required] string Code);
+    public record TotpVerifyDto([Required] string Code);
+    public record TwoFactorLoginDto([Required, EmailAddress] string Email, [Required] string PendingToken, [Required] string Code);
 
     public record AuthResponse(string Token, DateTime ExpiresAt, string RefreshToken, UserDto User);
-    public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, bool EmailConfirmed);
+    public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role, bool EmailConfirmed, bool TwoFactorEnabled);
+    public record TwoFactorChallengeResponse(bool Pending2fa, string PendingToken, string Email);
 
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterDto dto, CancellationToken ct)
@@ -178,7 +184,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginDto dto, CancellationToken ct)
+    public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken ct)
     {
         var emailLower = dto.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower, ct);
@@ -187,6 +193,57 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Niepoprawny email lub hasło." });
         }
 
+        if (user.TwoFactorEnabled)
+        {
+            // Hasło OK, ale wymagamy też kodu TOTP. Wystawiamy krótki "pending token" (5 min);
+            // klient pokaże prompt, ponowi wywołanie z kodem przez /auth/login-2fa.
+            var pending = await IssuePendingTwoFactorTokenAsync(user.Id, ct);
+            return Ok(new TwoFactorChallengeResponse(true, pending, user.Email));
+        }
+
+        return Ok(await IssueResponseAsync(user, ct));
+    }
+
+    private async Task<string> IssuePendingTwoFactorTokenAsync(Guid userId, CancellationToken ct)
+    {
+        var raw = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = userId,
+            TokenHash = "2FAPENDING:" + hash,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            UserAgent = "2fa-pending",
+        });
+        await _db.SaveChangesAsync(ct);
+        return raw;
+    }
+
+    [HttpPost("login-2fa")]
+    public async Task<IActionResult> LoginTwoFactor([FromBody] TwoFactorLoginDto dto, CancellationToken ct)
+    {
+        var emailLower = dto.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower, ct);
+        if (user is null || !user.TwoFactorEnabled || string.IsNullOrEmpty(user.TotpSecret))
+        {
+            return Unauthorized(new { error = "Niepoprawne dane." });
+        }
+
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(dto.PendingToken)));
+        var pending = await _db.RefreshTokens.FirstOrDefaultAsync(
+            t => t.TokenHash == "2FAPENDING:" + hash && t.UserId == user.Id, ct);
+        if (pending is null || pending.RevokedAt is not null || pending.ExpiresAt < DateTime.UtcNow)
+        {
+            return Unauthorized(new { error = "Sesja 2FA wygasła — zaloguj się ponownie." });
+        }
+
+        if (!_totp.Verify(user.TotpSecret, dto.Code))
+        {
+            return Unauthorized(new { error = "Nieprawidłowy kod 2FA." });
+        }
+
+        pending.RevokedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
         return Ok(await IssueResponseAsync(user, ct));
     }
 
@@ -205,7 +262,7 @@ public class AuthController : ControllerBase
 
         return Ok(new AuthResponse(
             access, expires, newRaw,
-            new UserDto(token.User.Id, token.User.Email, token.User.DisplayName, token.User.Role, token.User.EmailConfirmed)));
+            new UserDto(token.User.Id, token.User.Email, token.User.DisplayName, token.User.Role, token.User.EmailConfirmed, token.User.TwoFactorEnabled)));
     }
 
     [HttpPost("google")]
@@ -377,6 +434,82 @@ public class AuthController : ControllerBase
         return Ok(new { ok = true });
     }
 
+    [HttpGet("2fa/status")]
+    [Authorize]
+    public async Task<IActionResult> TwoFactorStatus(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Unauthorized();
+        return Ok(new { enabled = user.TwoFactorEnabled });
+    }
+
+    /// <summary>Generuje świeży secret + URI do QR. Włączenie wymaga osobnego /enable z kodem.</summary>
+    [HttpPost("2fa/setup")]
+    [Authorize]
+    public async Task<IActionResult> TwoFactorSetup(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Unauthorized();
+        if (user.TwoFactorEnabled)
+        {
+            return Conflict(new { error = "2FA jest już włączone — wyłącz wcześniej, by wygenerować nowy sekret." });
+        }
+
+        var secret = _totp.GenerateSecret();
+        user.TotpSecret = secret;
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            secret,
+            otpAuthUri = _totp.BuildOtpAuthUri(secret, user.Email),
+        });
+    }
+
+    [HttpPost("2fa/enable")]
+    [Authorize]
+    public async Task<IActionResult> TwoFactorEnable([FromBody] TotpVerifyDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || string.IsNullOrEmpty(user.TotpSecret))
+        {
+            return BadRequest(new { error = "Najpierw wywołaj /2fa/setup." });
+        }
+
+        if (!_totp.Verify(user.TotpSecret, dto.Code))
+        {
+            return BadRequest(new { error = "Nieprawidłowy kod — sprawdź apkę autoryzacyjną i czas systemu." });
+        }
+
+        user.TwoFactorEnabled = true;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPost("2fa/disable")]
+    [Authorize]
+    public async Task<IActionResult> TwoFactorDisable([FromBody] TotpVerifyDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.TwoFactorEnabled || string.IsNullOrEmpty(user.TotpSecret))
+        {
+            return NoContent();
+        }
+        if (!_totp.Verify(user.TotpSecret, dto.Code))
+        {
+            return BadRequest(new { error = "Nieprawidłowy kod." });
+        }
+
+        user.TwoFactorEnabled = false;
+        user.TotpSecret = null;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken ct)
@@ -394,6 +527,6 @@ public class AuthController : ControllerBase
         var ua = Request.Headers.UserAgent.ToString();
         var (raw, _) = await _refresh.IssueAsync(user.Id, ua, ct);
         return new AuthResponse(access, expires, raw,
-            new UserDto(user.Id, user.Email, user.DisplayName, user.Role, user.EmailConfirmed));
+            new UserDto(user.Id, user.Email, user.DisplayName, user.Role, user.EmailConfirmed, user.TwoFactorEnabled));
     }
 }

@@ -44,6 +44,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 builder.Services.Configure<GitHubAuthOptions>(builder.Configuration.GetSection(GitHubAuthOptions.SectionName));
 builder.Services.AddHttpClient<GitHubAuthService>();
+builder.Services.AddSingleton<TotpService>();
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 // SMTP w prod, logger fallback w dev (i gdy brak konfiguracji).

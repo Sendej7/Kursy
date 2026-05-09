@@ -9,6 +9,7 @@ export interface AuthUser {
   displayName: string;
   role: Role;
   emailConfirmed?: boolean;
+  twoFactorEnabled?: boolean;
 }
 
 interface AuthState {
