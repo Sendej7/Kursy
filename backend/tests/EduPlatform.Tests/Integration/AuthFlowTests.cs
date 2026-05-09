@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 
@@ -8,6 +9,9 @@ namespace EduPlatform.Tests.Integration;
 public class AuthFlowTests : IClassFixture<TestApp>
 {
     private readonly TestApp _app;
+    // ASP.NET zwraca JSON w camelCase; domyślny ReadFromJsonAsync jest case-sensitive
+    // — bez tych opcji deserializacja record-ów nie wypełniłaby pól.
+    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
     public AuthFlowTests(TestApp app)
     {
@@ -27,7 +31,7 @@ public class AuthFlowTests : IClassFixture<TestApp>
         });
         register.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var registered = await register.Content.ReadFromJsonAsync<AuthBody>();
+        var registered = await register.Content.ReadFromJsonAsync<AuthBody>(_json);
         registered!.Token.Should().NotBeNullOrEmpty();
         registered.RefreshToken.Should().NotBeNullOrEmpty();
         registered.User.Email.Should().NotBeNullOrEmpty();
@@ -40,7 +44,7 @@ public class AuthFlowTests : IClassFixture<TestApp>
         var email = $"u{Guid.NewGuid():N}@example.com";
         await client.PostAsJsonAsync("/api/auth/register", new
         {
-            email, password = "very-secret", displayName = "X",
+            email, password = "very-secret", displayName = "Tester",
         });
 
         var login = await client.PostAsJsonAsync("/api/auth/login", new
@@ -57,13 +61,13 @@ public class AuthFlowTests : IClassFixture<TestApp>
         var email = $"u{Guid.NewGuid():N}@example.com";
         var register = await client.PostAsJsonAsync("/api/auth/register", new
         {
-            email, password = "very-secret", displayName = "X",
+            email, password = "very-secret", displayName = "Tester",
         });
-        var initial = await register.Content.ReadFromJsonAsync<AuthBody>();
+        var initial = await register.Content.ReadFromJsonAsync<AuthBody>(_json);
 
         var refresh = await client.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = initial!.RefreshToken });
         refresh.StatusCode.Should().Be(HttpStatusCode.OK);
-        var rotated = await refresh.Content.ReadFromJsonAsync<AuthBody>();
+        var rotated = await refresh.Content.ReadFromJsonAsync<AuthBody>(_json);
         rotated!.RefreshToken.Should().NotBe(initial.RefreshToken);
 
         var reuse = await client.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = initial.RefreshToken });

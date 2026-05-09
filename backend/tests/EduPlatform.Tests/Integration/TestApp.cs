@@ -30,10 +30,24 @@ public class TestApp : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            // Replace AppDbContext with InMemory provider for tests.
-            var descriptor = services.Single(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-            services.Remove(descriptor);
-            services.AddDbContext<AppDbContext>(opts => opts.UseInMemoryDatabase(_dbName));
+            // Replace AppDbContext na InMemory provider. UseInternalServiceProvider izoluje
+            // EF Core providers — bez tego oba providery (Npgsql + InMemory) są wykrywane
+            // jednocześnie i EF rzuca InvalidOperationException.
+            var toRemove = services
+                .Where(d =>
+                    d.ServiceType == typeof(DbContextOptions<AppDbContext>) ||
+                    d.ServiceType == typeof(DbContextOptions) ||
+                    d.ServiceType == typeof(AppDbContext))
+                .ToList();
+            foreach (var d in toRemove) services.Remove(d);
+
+            var efProvider = new ServiceCollection()
+                .AddEntityFrameworkInMemoryDatabase()
+                .BuildServiceProvider();
+
+            services.AddDbContext<AppDbContext>(opts =>
+                opts.UseInMemoryDatabase(_dbName)
+                    .UseInternalServiceProvider(efProvider));
         });
     }
 }
