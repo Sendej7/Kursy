@@ -173,6 +173,21 @@ public static class DatabaseSeeder
         module2.Lessons = new List<Lesson> { lesson3 };
 
         db.Courses.Add(course);
+
+        // Drugi kurs — płatny, demo dla flow z subskrypcją.
+        var advanced = new Course
+        {
+            Title = "Python — algorytmy i struktury danych",
+            Slug = "python-algorytmy",
+            Description = "Kurs dla planu Pro. Listy, słowniki, drzewa, podstawy big-O.",
+            Language = CourseLanguage.Python,
+            Visibility = CourseVisibility.Public,
+            PriceMonthlyPln = 30m,
+            AuthorId = demoAuthor.Id,
+            Tags = new List<string> { "python", "zaawansowane", "algorytmy" },
+        };
+        db.Courses.Add(advanced);
+
         await db.SaveChangesAsync(ct);
     }
 }

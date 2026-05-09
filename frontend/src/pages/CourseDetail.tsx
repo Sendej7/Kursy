@@ -1,12 +1,14 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { toast } from '@/lib/toast';
 
 export default function CourseDetail() {
   const { slug = '' } = useParams();
   const auth = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: course, isLoading, error } = useQuery({
     queryKey: ['course', slug],
@@ -16,6 +18,14 @@ export default function CourseDetail() {
   const enroll = useMutation({
     mutationFn: () => api.enrollById(course!.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', slug] }),
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 402) {
+        toast.error('Ten kurs wymaga subskrypcji Pro.');
+        navigate('/pricing');
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Coś poszło nie tak.');
+      }
+    },
   });
 
   if (isLoading) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-500">Ładowanie…</p>;
@@ -65,9 +75,18 @@ export default function CourseDetail() {
             </Link>
           )}
           <span className="text-sm text-gray-500">
-            {course.priceMonthlyPln ? `${course.priceMonthlyPln} zł/mies` : 'darmowe'}
+            {course.priceMonthlyPln ? `${course.priceMonthlyPln} zł/mies (Pro)` : 'darmowe'}
           </span>
         </div>
+        {course.priceMonthlyPln && !course.isEnrolled && (
+          <p className="text-xs text-gray-500 mt-2">
+            Ten kurs jest dostępny w planie Pro.{' '}
+            <Link to="/pricing" className="underline">
+              Zobacz cennik
+            </Link>
+            .
+          </p>
+        )}
       </div>
 
       <div className="space-y-6">

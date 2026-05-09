@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using EduPlatform.AiService;
 using EduPlatform.Api.Auth;
+using EduPlatform.Api.Billing;
 using EduPlatform.Api.Hubs;
 using EduPlatform.Api.Seed;
 using EduPlatform.Api.Services;
@@ -28,6 +29,9 @@ builder.Services.AddSingleton<ICodeRunner, InMemoryCodeRunner>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<CertificateService>();
 builder.Services.AddScoped<GamificationService>();
+
+builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
+builder.Services.AddScoped<StripeService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<JwtTokenService>();
