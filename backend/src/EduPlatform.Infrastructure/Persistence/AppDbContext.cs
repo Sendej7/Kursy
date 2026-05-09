@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<OrganizationCode> OrganizationCodes => Set<OrganizationCode>();
     public DbSet<OrganizationCodeRedemption> OrganizationCodeRedemptions => Set<OrganizationCodeRedemption>();
     public DbSet<CourseReview> CourseReviews => Set<CourseReview>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

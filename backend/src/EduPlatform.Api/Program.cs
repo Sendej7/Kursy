@@ -35,6 +35,7 @@ builder.Services.AddSingleton<ICodeRunner, InMemoryCodeRunner>();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<CertificateService>();
 builder.Services.AddScoped<GamificationService>();
+builder.Services.AddScoped<NotificationService>();
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
 builder.Services.AddScoped<InvoiceService>();

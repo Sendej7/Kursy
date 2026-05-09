@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import StreakPill from './components/StreakPill';
 import Toaster from './components/Toaster';
 import EmailVerifyBanner from './components/EmailVerifyBanner';
+import NotificationsBell from './components/NotificationsBell';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -103,6 +104,7 @@ function Header() {
           {auth.isAuthenticated() ? (
             <>
               <StreakPill />
+              <NotificationsBell />
               <Link to="/account" className="text-gray-500 hover:underline">
                 {auth.user?.displayName}
               </Link>
