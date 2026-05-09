@@ -38,6 +38,7 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<CertificateService>();
 builder.Services.AddScoped<GamificationService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<AchievementService>();
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
 builder.Services.AddScoped<InvoiceService>();

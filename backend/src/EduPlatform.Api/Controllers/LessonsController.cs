@@ -15,17 +15,20 @@ public class LessonsController : ControllerBase
     private readonly ICurrentUser _currentUser;
     private readonly CertificateService _certificates;
     private readonly GamificationService _gamification;
+    private readonly AchievementService _achievements;
 
     public LessonsController(
         AppDbContext db,
         ICurrentUser currentUser,
         CertificateService certificates,
-        GamificationService gamification)
+        GamificationService gamification,
+        AchievementService achievements)
     {
         _db = db;
         _currentUser = currentUser;
         _certificates = certificates;
         _gamification = gamification;
+        _achievements = achievements;
     }
 
     public record LessonDetailDto(
@@ -155,6 +158,10 @@ public class LessonsController : ControllerBase
         {
             issued = await _certificates.IssueIfEligibleAsync(userId, lessonForCourse.CourseId, ct);
         }
+
+        // Po wszystkich update'ach (lesson progress + gamification + cert) — sprawdź odznaki.
+        await _achievements.CheckAndAwardAsync(userId, ct);
+        await _db.SaveChangesAsync(ct);
 
         return Ok(new
         {
