@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import CodeEditor from '@/components/CodeEditor';
 import AiChat from '@/components/AiChat';
+import LessonQAList from '@/components/LessonQAList';
 import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
 import { useAuth } from '@/lib/auth';
@@ -280,6 +281,8 @@ export default function LessonView() {
           ) : <span className="text-xs text-gray-500">Ostatnia lekcja w kursie</span>}
         </div>
       )}
+
+      <LessonQAList lessonId={lessonId} canAsk={isAuthed} />
     </section>
   );
 }

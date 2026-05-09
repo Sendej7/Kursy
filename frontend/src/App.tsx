@@ -19,6 +19,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const GitHubCallback = lazy(() => import('./pages/GitHubCallback'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const QuestionDetail = lazy(() => import('./pages/QuestionDetail'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const MyCertificates = lazy(() => import('./pages/MyCertificates'));
 const CertificateDetail = lazy(() => import('./pages/CertificateDetail'));
@@ -168,6 +169,7 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/questions/:id" element={<QuestionDetail />} />
 
             <Route
               path="/my-courses"
