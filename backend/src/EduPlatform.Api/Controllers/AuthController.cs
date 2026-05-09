@@ -4,10 +4,12 @@ using EduPlatform.Api.Services;
 using EduPlatform.Domain.Entities;
 using EduPlatform.Domain.Enums;
 using EduPlatform.Infrastructure.Persistence;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace EduPlatform.Api.Controllers;
 
@@ -20,13 +22,23 @@ public class AuthController : ControllerBase
     private readonly JwtTokenService _jwt;
     private readonly RefreshTokenService _refresh;
     private readonly ICurrentUser _currentUser;
+    private readonly GoogleAuthOptions _googleOptions;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext db, JwtTokenService jwt, RefreshTokenService refresh, ICurrentUser currentUser)
+    public AuthController(
+        AppDbContext db,
+        JwtTokenService jwt,
+        RefreshTokenService refresh,
+        ICurrentUser currentUser,
+        IOptions<GoogleAuthOptions> googleOptions,
+        ILogger<AuthController> logger)
     {
         _db = db;
         _jwt = jwt;
         _refresh = refresh;
         _currentUser = currentUser;
+        _googleOptions = googleOptions.Value;
+        _logger = logger;
     }
 
     public record RegisterDto(
@@ -40,6 +52,9 @@ public class AuthController : ControllerBase
         [Required] string Password);
 
     public record RefreshDto([Required] string RefreshToken);
+    public record GoogleLoginDto([Required] string IdToken);
+    public record ForgotPasswordDto([Required, EmailAddress] string Email);
+    public record ResetPasswordDto([Required] string Code, [Required, MinLength(8)] string NewPassword);
 
     public record AuthResponse(string Token, DateTime ExpiresAt, string RefreshToken, UserDto User);
     public record UserDto(Guid Id, string Email, string DisplayName, UserRole Role);
@@ -96,6 +111,115 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponse(
             access, expires, newRaw,
             new UserDto(token.User.Id, token.User.Email, token.User.DisplayName, token.User.Role)));
+    }
+
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponse>> Google([FromBody] GoogleLoginDto dto, CancellationToken ct)
+    {
+        if (!_googleOptions.IsConfigured)
+        {
+            return StatusCode(503, new { error = "Logowanie Google nie jest skonfigurowane." });
+        }
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken, new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { _googleOptions.ClientId },
+            });
+        }
+        catch (InvalidJwtException ex)
+        {
+            _logger.LogWarning(ex, "Google ID token validation failed.");
+            return Unauthorized(new { error = "Nieprawidłowy token Google." });
+        }
+
+        if (payload.EmailVerified != true)
+        {
+            return Unauthorized(new { error = "Email Google nie jest zweryfikowany." });
+        }
+
+        var emailLower = payload.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower || u.GoogleId == payload.Subject, ct);
+
+        if (user is null)
+        {
+            user = new User
+            {
+                Email = emailLower,
+                DisplayName = payload.Name ?? emailLower.Split('@')[0],
+                PasswordHash = string.Empty,
+                GoogleId = payload.Subject,
+                AvatarUrl = payload.Picture,
+                Role = UserRole.Student,
+            };
+            _db.Users.Add(user);
+        }
+        else
+        {
+            // Link Google to existing email account on first Google sign-in.
+            user.GoogleId ??= payload.Subject;
+            user.AvatarUrl ??= payload.Picture;
+        }
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(await IssueResponseAsync(user, ct));
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto, CancellationToken ct)
+    {
+        var emailLower = dto.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == emailLower, ct);
+        if (user is null)
+        {
+            // Nie ujawniamy istnienia konta — odpowiedź zawsze "ok".
+            return Ok(new { ok = true });
+        }
+
+        // Token: krótki, jednorazowy. Prosta implementacja — refresh token z label "reset".
+        var raw = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = "PWRESET:" + hash,
+            ExpiresAt = DateTime.UtcNow.AddHours(2),
+            UserAgent = "password-reset",
+        });
+        await _db.SaveChangesAsync(ct);
+
+        // MVP bez SMTP — log do konsoli; deploy przepnie to do mailera.
+        _logger.LogInformation("[PASSWORD RESET] Link dla {Email}: /reset-password?code={Raw}", emailLower, raw);
+        return Ok(new { ok = true });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto, CancellationToken ct)
+    {
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(dto.Code)));
+        var resetToken = await _db.RefreshTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.TokenHash == "PWRESET:" + hash, ct);
+
+        if (resetToken is null || resetToken.User is null
+            || resetToken.RevokedAt is not null
+            || resetToken.ExpiresAt < DateTime.UtcNow)
+        {
+            return BadRequest(new { error = "Link wygasł lub jest nieprawidłowy." });
+        }
+
+        resetToken.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        resetToken.RevokedAt = DateTime.UtcNow;
+        // Wyloguj wszędzie po resecie hasła
+        var others = await _db.RefreshTokens
+            .Where(t => t.UserId == resetToken.UserId && t.RevokedAt == null && t.Id != resetToken.Id)
+            .ToListAsync(ct);
+        foreach (var t in others) t.RevokedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new { ok = true });
     }
 
     [Authorize]

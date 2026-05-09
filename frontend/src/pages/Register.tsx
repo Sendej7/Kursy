@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -30,9 +32,34 @@ export default function Register() {
     }
   }
 
+  const onGoogle = useCallback(
+    async (idToken: string) => {
+      try {
+        const res = await api.googleLogin(idToken);
+        setSession(res.token, res.expiresAt, res.refreshToken, res.user);
+        toast.success('Konto utworzone. Powodzenia!');
+        navigate('/my-courses', { replace: true });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Logowanie Google nie powiodło się.');
+      }
+    },
+    [setSession, navigate],
+  );
+
   return (
     <section className="max-w-sm mx-auto px-4 py-16">
       <h1 className="text-2xl font-bold mb-6">Załóż konto</h1>
+
+      <div className="mb-4 flex justify-center">
+        <GoogleSignInButton onCredential={onGoogle} />
+      </div>
+
+      <div className="flex items-center gap-3 my-4 text-xs text-gray-500">
+        <span className="flex-1 border-t" />
+        <span>lub</span>
+        <span className="flex-1 border-t" />
+      </div>
+
       <form onSubmit={submit} className="space-y-3">
         <label className="block">
           <span className="text-sm">Imię (lub nick)</span>

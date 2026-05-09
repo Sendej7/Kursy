@@ -215,6 +215,27 @@ export const api = {
 
   logout: () => http<void>('/auth/logout', { method: 'POST' }),
 
+  googleLogin: (idToken: string) =>
+    http<AuthResponse>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+      auth: false,
+    }),
+
+  forgotPassword: (email: string) =>
+    http<{ ok: boolean }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+      auth: false,
+    }),
+
+  resetPassword: (code: string, newPassword: string) =>
+    http<{ ok: boolean }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ code, newPassword }),
+      auth: false,
+    }),
+
   // courses
   listCourses: (params?: { q?: string; language?: CourseLanguage; tag?: string }) => {
     const search = new URLSearchParams();
