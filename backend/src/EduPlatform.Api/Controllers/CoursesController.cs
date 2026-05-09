@@ -21,7 +21,10 @@ public class CoursesController : ControllerBase
         _currentUser = currentUser;
     }
 
-    public record CourseListItem(Guid Id, string Title, string Slug, string Description, CourseLanguage Language, decimal? PriceMonthlyPln, IReadOnlyList<string> Tags);
+    public record CourseListItem(
+        Guid Id, string Title, string Slug, string Description, CourseLanguage Language,
+        decimal? PriceMonthlyPln, IReadOnlyList<string> Tags,
+        double AverageRating, int ReviewCount);
     public record CourseDetailDto(
         Guid Id,
         string Title,
@@ -31,7 +34,9 @@ public class CoursesController : ControllerBase
         decimal? PriceMonthlyPln,
         IReadOnlyList<string> Tags,
         IReadOnlyList<ModuleDto> Modules,
-        bool IsEnrolled);
+        bool IsEnrolled,
+        double AverageRating,
+        int ReviewCount);
     public record ModuleDto(Guid Id, string Title, int Order, IReadOnlyList<LessonSummaryDto> Lessons);
     public record LessonSummaryDto(Guid Id, string Title, int Order, LessonType Type, bool IsCompleted);
 
@@ -58,7 +63,10 @@ public class CoursesController : ControllerBase
 
         var courses = await query
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new CourseListItem(c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln, c.Tags))
+            .Select(c => new CourseListItem(
+                c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln, c.Tags,
+                _db.CourseReviews.Where(r => r.CourseId == c.Id).Average(r => (double?)r.Rating) ?? 0d,
+                _db.CourseReviews.Count(r => r.CourseId == c.Id)))
             .ToListAsync(ct);
 
         if (!string.IsNullOrWhiteSpace(tag))
@@ -111,6 +119,12 @@ public class CoursesController : ControllerBase
                 .ToHashSet();
         }
 
+        var reviewStats = await _db.CourseReviews
+            .Where(r => r.CourseId == course.Id)
+            .GroupBy(r => 1)
+            .Select(g => new { Avg = g.Average(r => (double)r.Rating), Count = g.Count() })
+            .FirstOrDefaultAsync(ct);
+
         return Ok(new CourseDetailDto(
             course.Id,
             course.Title,
@@ -125,7 +139,9 @@ public class CoursesController : ControllerBase
                 m.Order,
                 m.Lessons.Select(l => new LessonSummaryDto(
                     l.Id, l.Title, l.Order, l.Type, completedLessons.Contains(l.Id))).ToList())).ToList(),
-            enrolled));
+            enrolled,
+            reviewStats?.Avg ?? 0d,
+            reviewStats?.Count ?? 0));
     }
 
     public record EnrollByCodeDto(string AccessCode);
