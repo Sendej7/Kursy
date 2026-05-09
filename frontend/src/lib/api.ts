@@ -850,6 +850,35 @@ export const api = {
 
   // admin
   admin: {
+    promoCodes: {
+      list: () =>
+        http<
+          {
+            id: string;
+            code: string;
+            couponId: string;
+            percentOff: number | null;
+            amountOffGr: number | null;
+            active: boolean;
+            maxRedemptions: number | null;
+            timesRedeemed: number;
+            expiresAt: string | null;
+          }[]
+        >('/admin/promo-codes'),
+      create: (payload: {
+        code: string;
+        percentOff?: number | null;
+        amountOffPln?: number | null;
+        maxRedemptions?: number | null;
+        expiresAt?: string | null;
+        description?: string | null;
+      }) => http<{ id: string; code: string }>('/admin/promo-codes', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      deactivate: (id: string) =>
+        http<void>(`/admin/promo-codes/${id}/deactivate`, { method: 'POST' }),
+    },
     stats: () =>
       http<{
         users: number;
