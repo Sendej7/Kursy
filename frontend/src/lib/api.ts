@@ -478,6 +478,19 @@ export const api = {
     http<{ tag: string; count: number }[]>('/courses/tags', { auth: false }),
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
 
+  embed: {
+    getLesson: (id: string) =>
+      http<{
+        id: string;
+        title: string;
+        contentMarkdown: string;
+        courseId: string;
+        courseSlug: string;
+        courseTitle: string;
+        authorDisplayName: string;
+      }>(`/embed/lessons/${id}`, { auth: false }),
+  },
+
   toggleFavorite: (courseId: string) =>
     http<{ favorited: boolean }>(`/courses/${courseId}/favorite`, { method: 'POST' }),
   myFavorites: () => http<FavoriteCourse[]>('/courses/favorites/mine'),

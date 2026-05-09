@@ -121,6 +121,29 @@ export default function LessonEditor() {
           >
             {saveLesson.isPending ? 'Zapisuję…' : 'Zapisz lekcję'}
           </button>
+
+          <details className="mt-4 text-xs">
+            <summary className="cursor-pointer text-gray-600 hover:text-black">
+              Kod do osadzenia (iframe)
+            </summary>
+            <p className="mt-2 text-gray-500">
+              Wklej na blogu / stronie WWW. Działa tylko dla lekcji w publicznych, darmowych
+              kursach.
+            </p>
+            <pre className="mt-2 p-2 bg-gray-100 rounded text-[11px] font-mono whitespace-pre-wrap break-all">
+{`<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/embed/lessons/${id}" width="100%" height="600" frameborder="0"></iframe>`}
+            </pre>
+            <button
+              type="button"
+              onClick={() => {
+                const code = `<iframe src="${window.location.origin}/embed/lessons/${id}" width="100%" height="600" frameborder="0"></iframe>`;
+                navigator.clipboard?.writeText(code).catch(() => undefined);
+              }}
+              className="mt-2 px-2 py-1 border rounded text-xs hover:bg-gray-50"
+            >
+              Skopiuj
+            </button>
+          </details>
         </div>
 
         <div className="space-y-3">
