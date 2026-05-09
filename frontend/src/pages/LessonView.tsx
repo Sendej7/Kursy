@@ -8,11 +8,15 @@ import AiChat from '@/components/AiChat';
 import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
 import { useAuth } from '@/lib/auth';
+import { joinLesson, notifyCompleted } from '@/lib/lessonHub';
 
 export default function LessonView() {
   const { lessonId = '' } = useParams();
   const isAuthed = useAuth((s) => s.isAuthenticated());
+  const displayName = useAuth((s) => s.user?.displayName ?? 'Anonim');
   const qc = useQueryClient();
+  const [presence, setPresence] = useState(0);
+  const [recentCompletions, setRecentCompletions] = useState<string[]>([]);
 
   const { data: lesson, isLoading, error } = useQuery({
     queryKey: ['lesson', lessonId],
@@ -36,6 +40,27 @@ export default function LessonView() {
     setLastError(null);
     startedAt.current = Date.now();
   }, [lessonId, lesson?.exercise?.starterCode]);
+
+  useEffect(() => {
+    if (!lessonId || !isAuthed) return;
+    let leaveFn: (() => Promise<void>) | null = null;
+    joinLesson(
+      lessonId,
+      (p) => setPresence(p.count),
+      (name) =>
+        setRecentCompletions((prev) => {
+          const next = [name, ...prev.filter((n) => n !== name)];
+          return next.slice(0, 3);
+        }),
+    ).then((leave) => {
+      leaveFn = leave;
+    }).catch(() => {
+      /* SignalR not available — no-op */
+    });
+    return () => {
+      void leaveFn?.();
+    };
+  }, [lessonId, isAuthed]);
 
   const allPassed = tests.length > 0 && tests.every((t) => t.passed);
 
@@ -78,6 +103,7 @@ export default function LessonView() {
         if (res.passed) {
           await api.completeLesson(lesson.id, seconds);
           qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
+          notifyCompleted(lesson.id, displayName);
         }
       } catch {
         /* nie blokuj UI */
@@ -94,7 +120,22 @@ export default function LessonView() {
   }
 
   return (
-    <section className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <section className="max-w-6xl mx-auto px-4 py-6 space-y-3">
+      {(presence > 0 || recentCompletions.length > 0) && (
+        <div className="flex items-center justify-end gap-3 text-xs text-gray-600">
+          {presence > 0 && (
+            <span className="px-2 py-1 bg-green-50 border border-green-200 rounded-full">
+              ● {presence} {presence === 1 ? 'student' : 'studentów'} teraz tutaj
+            </span>
+          )}
+          {recentCompletions.map((name, i) => (
+            <span key={`${name}-${i}`} className="px-2 py-1 bg-amber-50 border border-amber-200 rounded-full">
+              🎉 {name} właśnie skończył
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="prose prose-sm max-w-none">
         <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
         {lesson.exercise && (
@@ -161,6 +202,7 @@ export default function LessonView() {
           />
         </div>
       )}
+      </div>
     </section>
   );
 }

@@ -14,10 +14,16 @@ export default function AuthorDashboard() {
         <h1 className="text-2xl font-bold">Twoje kursy</h1>
         <div className="flex gap-2">
           <Link
+            to="/author/generate-course"
+            className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+          >
+            Wygeneruj cały kurs z notatek
+          </Link>
+          <Link
             to="/author/generate"
             className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
           >
-            Wygeneruj z notatek
+            Pojedyncza lekcja
           </Link>
           <Link
             to="/author/courses/new"

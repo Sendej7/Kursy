@@ -171,13 +171,102 @@ public class AuthorController : ControllerBase
     [HttpPost("generate-from-text")]
     public async Task<IActionResult> GenerateFromText([FromBody] GenerateFromTextDto dto, CancellationToken ct)
     {
-        // MVP: bierzemy pierwsze ~3000 znaków źródła, generujemy kurs z 3 lekcjami.
-        // Pełen flow (PDF/PPTX → ekstrakcja tekstu → struktura → lekcje per call) zrobimy w iteracji 2.
         var snippet = dto.SourceText.Length > 4000 ? dto.SourceText[..4000] : dto.SourceText;
         var topic = $"Kurs na podstawie materiału użytkownika ({dto.TargetLanguage})";
         var lesson = await _ai.GenerateLessonAsync(
             new GenerateLessonRequest(topic, snippet, dto.TargetLanguage), ct);
         return Ok(new { proposedLesson = lesson });
+    }
+
+    public record CourseOutlineDto(string SourceText, string TargetLanguage = "Python", string? CourseTitleHint = null);
+
+    [HttpPost("outline")]
+    public async Task<IActionResult> ProposeOutline([FromBody] CourseOutlineDto dto, CancellationToken ct)
+    {
+        var outline = await _ai.ProposeCourseOutlineAsync(
+            new CourseOutlineRequest(dto.SourceText, dto.TargetLanguage, dto.CourseTitleHint), ct);
+        return Ok(outline);
+    }
+
+    public record ImportLessonOutlineDto(string Title, string Summary, string Topic);
+    public record ImportModuleOutlineDto(string Title, string Description, List<ImportLessonOutlineDto> Lessons);
+    public record ImportCourseOutlineDto(string Title, string Description, CourseLanguage Language, List<ImportModuleOutlineDto> Modules);
+
+    /// <summary>
+    /// Tworzy kurs (jako Draft) wraz z modułami i lekcjami. Każdą lekcję generuje
+    /// osobnym wywołaniem do AI (lepsza jakość niż „zrób cały kurs naraz") na bazie topicu.
+    /// Operacja jest długa — frontend pokazuje progress, backend uruchamia w transakcji.
+    /// </summary>
+    [HttpPost("import-outline")]
+    public async Task<IActionResult> ImportOutline([FromBody] ImportCourseOutlineDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } authorId) return Unauthorized();
+
+        var slug = Slugify(dto.Title);
+        if (await _db.Courses.AnyAsync(c => c.Slug == slug, ct))
+        {
+            slug = $"{slug}-{Guid.NewGuid().ToString()[..6]}";
+        }
+
+        var course = new Course
+        {
+            AuthorId = authorId,
+            Title = dto.Title,
+            Slug = slug,
+            Description = dto.Description,
+            Language = dto.Language,
+            Visibility = CourseVisibility.Draft,
+        };
+        _db.Courses.Add(course);
+
+        var contextBuilder = new System.Text.StringBuilder();
+        var moduleOrder = 1;
+        foreach (var m in dto.Modules)
+        {
+            var module = new Module
+            {
+                Course = course,
+                Title = m.Title,
+                Description = m.Description,
+                Order = moduleOrder++,
+            };
+            _db.Modules.Add(module);
+
+            var lessonOrder = 1;
+            foreach (var l in m.Lessons)
+            {
+                var generated = await _ai.GenerateLessonAsync(
+                    new GenerateLessonRequest(l.Topic, contextBuilder.ToString(), dto.Language.ToString()), ct);
+
+                var lesson = new Lesson
+                {
+                    Module = module,
+                    Title = string.IsNullOrWhiteSpace(generated.Title) ? l.Title : generated.Title,
+                    Order = lessonOrder++,
+                    Type = LessonType.Exercise,
+                    ContentMarkdown = generated.Theory,
+                };
+                _db.Lessons.Add(lesson);
+
+                if (!string.IsNullOrWhiteSpace(generated.StarterCode) || !string.IsNullOrWhiteSpace(generated.TestsCode))
+                {
+                    _db.Exercises.Add(new Exercise
+                    {
+                        Lesson = lesson,
+                        Prompt = l.Summary,
+                        StarterCode = generated.StarterCode,
+                        SolutionCode = generated.SolutionCode,
+                        TestsCode = generated.TestsCode,
+                        Hints = generated.Hints.ToList(),
+                    });
+                }
+
+                contextBuilder.AppendLine($"- {lesson.Title}: {l.Summary}");
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { course.Id, course.Slug, modules = dto.Modules.Count, lessons = dto.Modules.Sum(m => m.Lessons.Count) });
     }
 
     public record CommonError(string Description, int Occurrences);

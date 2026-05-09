@@ -31,6 +31,15 @@ public class ClaudeAiMentor : IAiMentor
         Zwracasz wyłącznie poprawny JSON wg podanego schematu, bez komentarza.
         """;
 
+    private const string OutlineSystemPrompt = """
+        Jesteś dydaktykiem programowania. Z dostarczonego materiału (notatki,
+        fragment skryptu, wykład) tworzysz strukturę interaktywnego kursu
+        po polsku. Dziel na 2–6 modułów, każdy ma 2–6 lekcji. Każda lekcja
+        ma temat („topic") opisujący CO uczy — po nim AI w drugim kroku
+        wygeneruje treść. Tytuły zwięzłe, opisy 1 zdanie. Zwracasz
+        WYŁĄCZNIE JSON.
+        """;
+
     private const string ImprovementSystemPrompt = """
         Jesteś dydaktykiem programowania, który ulepsza istniejące lekcje na
         podstawie realnych danych: gdzie studenci się zacinają, jakie błędy
@@ -257,6 +266,86 @@ public class ClaudeAiMentor : IAiMentor
         {
             _logger.LogError(ex, "Failed to parse improvement JSON. Raw: {Raw}", text);
             return new LessonImprovement("Nie udało się zinterpretować odpowiedzi AI.", Array.Empty<string>(), null);
+        }
+    }
+
+    public async Task<CourseOutline> ProposeCourseOutlineAsync(CourseOutlineRequest request, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(_options.ApiKey))
+        {
+            return new CourseOutline(
+                Title: request.CourseTitleHint ?? "Kurs (AI off)",
+                Description: "[AI off] Skonfiguruj Claude API key.",
+                TargetLanguage: request.TargetLanguage,
+                Modules: Array.Empty<ModuleOutline>());
+        }
+
+        var snippet = request.SourceText.Length > 8000 ? request.SourceText[..8000] : request.SourceText;
+        var titleHint = request.CourseTitleHint is null ? string.Empty : $"\nTytuł sugerowany: {request.CourseTitleHint}";
+
+        var userPrompt = $$"""
+            Materiał źródłowy (fragment, do 8000 znaków):
+            ---
+            {{snippet}}
+            ---
+
+            Cel: stworzyć strukturę kursu uczącego programowania w {{request.TargetLanguage}}.{{titleHint}}
+
+            Zwróć WYŁĄCZNIE JSON o schemacie:
+            {
+              "title": string,
+              "description": string,
+              "modules": [
+                {
+                  "title": string,
+                  "description": string,
+                  "lessons": [
+                    { "title": string, "summary": string, "topic": string }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        var body = new
+        {
+            model = _options.Model,
+            max_tokens = Math.Max(_options.MaxTokens, 2048),
+            system = OutlineSystemPrompt,
+            messages = new[] { new { role = "user", content = userPrompt } },
+        };
+
+        var (text, _) = await CallClaudeAsync(body, cancellationToken);
+
+        try
+        {
+            var json = ExtractJsonObject(text);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var modules = root.TryGetProperty("modules", out var modsEl) && modsEl.ValueKind == JsonValueKind.Array
+                ? modsEl.EnumerateArray().Select(m => new ModuleOutline(
+                    Title: m.GetProperty("title").GetString() ?? string.Empty,
+                    Description: m.TryGetProperty("description", out var d) ? d.GetString() ?? string.Empty : string.Empty,
+                    Lessons: m.TryGetProperty("lessons", out var ls) && ls.ValueKind == JsonValueKind.Array
+                        ? ls.EnumerateArray().Select(l => new LessonOutline(
+                            Title: l.GetProperty("title").GetString() ?? string.Empty,
+                            Summary: l.TryGetProperty("summary", out var s) ? s.GetString() ?? string.Empty : string.Empty,
+                            Topic: l.TryGetProperty("topic", out var t) ? t.GetString() ?? string.Empty : string.Empty))
+                            .ToArray()
+                        : Array.Empty<LessonOutline>())).ToArray()
+                : Array.Empty<ModuleOutline>();
+
+            return new CourseOutline(
+                Title: root.TryGetProperty("title", out var tt) ? tt.GetString() ?? "Kurs" : "Kurs",
+                Description: root.TryGetProperty("description", out var dd) ? dd.GetString() ?? string.Empty : string.Empty,
+                TargetLanguage: request.TargetLanguage,
+                Modules: modules);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse course outline JSON. Raw: {Raw}", text);
+            return new CourseOutline("Kurs", "Nie udało się sparsować odpowiedzi AI.", request.TargetLanguage, Array.Empty<ModuleOutline>());
         }
     }
 

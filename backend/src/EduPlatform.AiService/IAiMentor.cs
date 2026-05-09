@@ -36,9 +36,28 @@ public record LessonImprovement(
     IReadOnlyList<string> Suggestions,
     GeneratedLesson? RewrittenLesson);
 
+public record CourseOutlineRequest(string SourceText, string TargetLanguage = "Python", string? CourseTitleHint = null);
+
+public record CourseOutline(
+    string Title,
+    string Description,
+    string TargetLanguage,
+    IReadOnlyList<ModuleOutline> Modules);
+
+public record ModuleOutline(
+    string Title,
+    string Description,
+    IReadOnlyList<LessonOutline> Lessons);
+
+public record LessonOutline(
+    string Title,
+    string Summary,
+    string Topic);
+
 public interface IAiMentor
 {
     Task<MentorResponse> AskAsync(MentorRequest request, CancellationToken cancellationToken = default);
     Task<GeneratedLesson> GenerateLessonAsync(GenerateLessonRequest request, CancellationToken cancellationToken = default);
     Task<LessonImprovement> ProposeImprovementAsync(LessonImprovementContext context, CancellationToken cancellationToken = default);
+    Task<CourseOutline> ProposeCourseOutlineAsync(CourseOutlineRequest request, CancellationToken cancellationToken = default);
 }
