@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { api, isTwoFactorChallenge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
@@ -14,6 +14,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [twoFactor, setTwoFactor] = useState<{ pendingToken: string; email: string } | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const target = location.state?.from ?? '/my-courses';
 
@@ -23,11 +25,32 @@ export default function Login() {
     setPending(true);
     try {
       const res = await api.login(email, password);
+      if (isTwoFactorChallenge(res)) {
+        setTwoFactor({ pendingToken: res.pendingToken, email: res.email });
+        return;
+      }
       setSession(res.token, res.expiresAt, res.refreshToken, res.user);
       toast.success(`Cześć, ${res.user.displayName}!`);
       navigate(target, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function submitTwoFactor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!twoFactor) return;
+    setError(null);
+    setPending(true);
+    try {
+      const res = await api.loginTwoFactor(twoFactor.email, twoFactor.pendingToken, twoFactorCode);
+      setSession(res.token, res.expiresAt, res.refreshToken, res.user);
+      toast.success(`Cześć, ${res.user.displayName}!`);
+      navigate(target, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nieprawidłowy kod 2FA.');
     } finally {
       setPending(false);
     }
@@ -46,6 +69,50 @@ export default function Login() {
     },
     [setSession, navigate, target],
   );
+
+  if (twoFactor) {
+    return (
+      <section className="max-w-sm mx-auto px-4 py-16">
+        <h1 className="text-2xl font-bold mb-3">Weryfikacja 2FA</h1>
+        <p className="text-sm text-gray-600 mb-6">
+          Otwórz aplikację autoryzacyjną (Google Authenticator, 1Password, Bitwarden) i wpisz 6-cyfrowy kod dla{' '}
+          <strong>{twoFactor.email}</strong>.
+        </p>
+        <form onSubmit={submitTwoFactor} className="space-y-3">
+          <input
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            autoComplete="one-time-code"
+            autoFocus
+            placeholder="123456"
+            className="w-full text-center text-2xl tracking-widest font-mono border rounded-md px-3 py-2"
+            value={twoFactorCode}
+            onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+          />
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={pending || twoFactorCode.length !== 6}
+            className="w-full px-3 py-2 bg-black text-white rounded-md text-sm font-medium disabled:opacity-50"
+          >
+            {pending ? 'Sprawdzam…' : 'Zatwierdź'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTwoFactor(null);
+              setTwoFactorCode('');
+              setError(null);
+            }}
+            className="w-full px-3 py-2 text-sm text-gray-500 hover:underline"
+          >
+            ← Anuluj
+          </button>
+        </form>
+      </section>
+    );
+  }
 
   return (
     <section className="max-w-sm mx-auto px-4 py-16">

@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import BillingProfileForm from '@/components/BillingProfileForm';
+import TwoFactorSetup from '@/components/TwoFactorSetup';
 
 export default function Account() {
   const auth = useAuth();
@@ -98,6 +99,11 @@ export default function Account() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="border rounded-lg bg-white p-5">
+        <h2 className="font-semibold mb-2">Bezpieczeństwo (2FA)</h2>
+        <TwoFactorSetup />
       </div>
 
       <div className="border rounded-lg bg-white p-5">

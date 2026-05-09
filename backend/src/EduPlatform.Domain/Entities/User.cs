@@ -10,6 +10,11 @@ public class User : Entity
     public required string PasswordHash { get; set; }
     /// <summary>True gdy user kliknął w link weryfikacyjny w mailu (lub założył konto przez OAuth).</summary>
     public bool EmailConfirmed { get; set; }
+
+    /// <summary>Tajny base32 dla TOTP — null gdy 2FA nieskonfigurowane / wyłączone.</summary>
+    public string? TotpSecret { get; set; }
+    /// <summary>True dopiero po pierwszym poprawnym potwierdzeniu kodu (Setup → Enable).</summary>
+    public bool TwoFactorEnabled { get; set; }
     /// <summary>Google sub (stable user id). Null dla kont email/hasło.</summary>
     public string? GoogleId { get; set; }
     /// <summary>GitHub user id (stable). Null dla kont email/hasło / Google.</summary>
