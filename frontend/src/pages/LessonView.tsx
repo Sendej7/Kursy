@@ -1,69 +1,166 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import CodeEditor from '@/components/CodeEditor';
 import AiChat from '@/components/AiChat';
-import { runPython } from '@/lib/pyodide';
-
-const SAMPLE_LESSON = `## Pętla for
-
-Pętla \`for\` pozwala wykonać blok kodu wielokrotnie.
-
-### Spróbuj sam
-Napisz pętlę, która wypisze liczby od 1 do 5.
-`;
-
-const SAMPLE_STARTER = `# napisz tu kod
-for i in range(...):
-    print(i)
-`;
+import { api } from '@/lib/api';
+import { runPython, submitPython } from '@/lib/pyodide';
+import { useAuth } from '@/lib/auth';
 
 export default function LessonView() {
-  const [code, setCode] = useState(SAMPLE_STARTER);
-  const [output, setOutput] = useState('');
-  const [running, setRunning] = useState(false);
+  const { lessonId = '' } = useParams();
+  const isAuthed = useAuth((s) => s.isAuthenticated());
+  const qc = useQueryClient();
 
-  async function run() {
-    setRunning(true);
+  const { data: lesson, isLoading, error } = useQuery({
+    queryKey: ['lesson', lessonId],
+    queryFn: () => api.getLesson(lessonId),
+    enabled: !!lessonId,
+  });
+
+  const [code, setCode] = useState('');
+  const [output, setOutput] = useState('');
+  const [tests, setTests] = useState<{ name: string; passed: boolean; message: string | null }[]>([]);
+  const [runStatus, setRunStatus] = useState<'idle' | 'running' | 'submitting'>('idle');
+  const [lastError, setLastError] = useState<string | null>(null);
+  const startedAt = useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (lesson?.exercise?.starterCode) {
+      setCode(lesson.exercise.starterCode);
+    }
+    setOutput('');
+    setTests([]);
+    setLastError(null);
+    startedAt.current = Date.now();
+  }, [lessonId, lesson?.exercise?.starterCode]);
+
+  const allPassed = tests.length > 0 && tests.every((t) => t.passed);
+
+  async function onRun() {
+    setRunStatus('running');
     setOutput('Uruchamiam…');
+    setTests([]);
     const res = await runPython(code);
     setOutput(res.error ? `${res.stdout}\n${res.error}` : res.stdout || '(brak outputu)');
-    setRunning(false);
+    setLastError(res.error ?? null);
+    setRunStatus('idle');
+  }
+
+  async function onSubmit() {
+    if (!lesson?.exercise) return;
+    setRunStatus('submitting');
+    setOutput('Sprawdzam…');
+    setTests([]);
+
+    const res = await submitPython(code, lesson.exercise.testsCode);
+    setOutput(
+      res.error
+        ? `${res.stdout}\n${res.error}`
+        : res.stdout || (res.passed ? '✓ wszystkie testy przeszły' : '(brak outputu)'),
+    );
+    setTests(res.tests);
+    setLastError(res.error ?? null);
+
+    if (isAuthed) {
+      const seconds = Math.round((Date.now() - startedAt.current) / 1000);
+      try {
+        await api.recordSubmission({
+          exerciseId: lesson.exercise.id,
+          code,
+          passed: res.passed,
+          timeSpentSeconds: seconds,
+          errorMessage: res.error ?? null,
+          stdout: res.stdout,
+        });
+        if (res.passed) {
+          await api.completeLesson(lesson.id, seconds);
+          qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
+        }
+      } catch {
+        /* nie blokuj UI */
+      }
+    }
+    setRunStatus('idle');
+  }
+
+  const lessonContext = useMemo(() => lesson?.contentMarkdown ?? '', [lesson]);
+
+  if (isLoading) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-500">Ładowanie lekcji…</p>;
+  if (error || !lesson) {
+    return <p className="max-w-3xl mx-auto px-4 py-10 text-red-600">Nie znaleziono lekcji.</p>;
   }
 
   return (
     <section className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="prose prose-sm max-w-none">
-        <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{SAMPLE_LESSON}</ReactMarkdown>
+        <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
+        {lesson.exercise && (
+          <>
+            <h3>Zadanie</h3>
+            <p>{lesson.exercise.prompt}</p>
+            {lesson.exercise.hints.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer">Podpowiedzi</summary>
+                <ul>
+                  {lesson.exercise.hints.map((h, i) => (
+                    <li key={i}>{h}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )}
       </div>
 
-      <div className="space-y-4">
-        <div className="border rounded-lg overflow-hidden bg-[#1e1e1e]">
-          <CodeEditor value={code} onChange={setCode} language="python" height="280px" />
+      {lesson.exercise && (
+        <div className="space-y-4">
+          <div className="border rounded-lg overflow-hidden bg-[#1e1e1e]">
+            <CodeEditor value={code} onChange={setCode} language="python" height="280px" />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              className="px-3 py-1.5 bg-black text-white rounded-md text-sm disabled:opacity-50"
+              onClick={onRun}
+              disabled={runStatus !== 'idle'}
+            >
+              {runStatus === 'running' ? 'Uruchamiam…' : 'Uruchom'}
+            </button>
+            <button
+              className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+              onClick={onSubmit}
+              disabled={runStatus !== 'idle'}
+            >
+              {runStatus === 'submitting' ? 'Sprawdzam…' : 'Sprawdź'}
+            </button>
+            {allPassed && <span className="text-green-700 text-sm self-center">✓ ukończona</span>}
+          </div>
+
+          <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 min-h-[80px] whitespace-pre-wrap overflow-x-auto">
+            {output}
+          </pre>
+
+          {tests.length > 0 && (
+            <ul className="text-xs space-y-1">
+              {tests.map((t) => (
+                <li key={t.name} className={t.passed ? 'text-green-700' : 'text-red-600'}>
+                  {t.passed ? '✓' : '✗'} {t.name} {t.message ? `— ${t.message}` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <AiChat
+            lessonId={lesson.id}
+            lessonContext={lessonContext}
+            studentCode={code}
+            errorMessage={lastError ?? undefined}
+          />
         </div>
-
-        <div className="flex gap-2">
-          <button
-            className="px-3 py-1.5 bg-black text-white rounded-md text-sm disabled:opacity-50"
-            onClick={run}
-            disabled={running}
-          >
-            {running ? 'Uruchamiam…' : 'Uruchom'}
-          </button>
-          <button
-            className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
-            disabled={running}
-          >
-            Sprawdź
-          </button>
-        </div>
-
-        <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 min-h-[80px] whitespace-pre-wrap">
-          {output}
-        </pre>
-
-        <AiChat lessonContext={SAMPLE_LESSON} studentCode={code} />
-      </div>
+      )}
     </section>
   );
 }

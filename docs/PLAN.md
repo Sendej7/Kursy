@@ -35,7 +35,7 @@ Trzy filary, które razem tworzą przewagę nad Codio/Scrimbą/Codecademy:
 
 ## 3. Architektura — .NET + React
 
-### Backend (.NET 8/9)
+### Backend (.NET 10)
 
 **Dlaczego .NET pasuje tu dobrze:**
 - Świetny do API + SignalR (live feedback, postęp w czasie rzeczywistym)
@@ -366,7 +366,7 @@ Najczęstsze pytania do AI w tej lekcji:
 
 | Warstwa | Wybór | Dlaczego |
 |---------|-------|----------|
-| Backend | .NET 9 + ASP.NET Core | Twój wybór, dobry do tego |
+| Backend | .NET 10 + ASP.NET Core | LTS (listopad 2025), pełen ekosystem |
 | ORM | Entity Framework Core | Standard dla .NET |
 | Baza | PostgreSQL | Tańsza i równie dobra co MSSQL, świetne wsparcie JSON |
 | Frontend | React 18 + TS + Vite | Twój wybór, szybki dev |
