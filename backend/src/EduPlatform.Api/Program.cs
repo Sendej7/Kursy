@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
@@ -103,12 +104,16 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<RefreshTokenService>();
 
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Czytamy świeżo z DI (a nie z lokalnego var jwtOptions = configuration.Get(...))
+        // żeby test InMemoryCollection mógł nadpisać Issuer/Audience/SigningKey.
+#pragma warning disable ASP0000 // jednorazowy odczyt na starcie aplikacji — akceptowalne
+        var sp = builder.Services.BuildServiceProvider();
+        var jwtOptions = sp.GetRequiredService<IOptions<JwtOptions>>().Value;
+#pragma warning restore ASP0000
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
