@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@media print {
+  header, footer, nav, .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
+
 html, body, #root {
   height: 100%;
 }

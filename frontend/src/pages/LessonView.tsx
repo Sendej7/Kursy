@@ -108,11 +108,16 @@ export default function LessonView() {
           stdout: res.stdout,
         });
         if (res.passed) {
-          await api.completeLesson(lesson.id, seconds);
+          const completion = await api.completeLesson(lesson.id, seconds);
           qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
           qc.invalidateQueries({ queryKey: ['me', 'courses'] });
+          qc.invalidateQueries({ queryKey: ['me', 'certificates'] });
           notifyCompleted(lesson.id, displayName);
-          toast.success('Świetnie! Lekcja ukończona.');
+          if (completion.certificateIssued) {
+            toast.success('🎓 Wystawiono certyfikat — sprawdź zakładkę „Certyfikaty"!');
+          } else {
+            toast.success('Świetnie! Lekcja ukończona.');
+          }
         }
       } catch {
         /* nie blokuj UI */

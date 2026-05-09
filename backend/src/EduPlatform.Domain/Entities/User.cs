@@ -16,4 +16,5 @@ public class User : Entity
     public ICollection<LessonProgress> LessonProgresses { get; set; } = new List<LessonProgress>();
     public ICollection<AiInteraction> AiInteractions { get; set; } = new List<AiInteraction>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
 }

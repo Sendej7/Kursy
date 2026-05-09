@@ -17,6 +17,8 @@ import PendingCourses from './pages/admin/PendingCourses';
 import ProtectedRoute from './components/ProtectedRoute';
 import Toaster from './components/Toaster';
 import MyCourses from './pages/MyCourses';
+import MyCertificates from './pages/MyCertificates';
+import CertificateDetail from './pages/CertificateDetail';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -46,9 +48,14 @@ function Header() {
             Katalog
           </Link>
           {auth.isAuthenticated() && (
-            <Link to="/my-courses" className="hover:underline">
-              Moje kursy
-            </Link>
+            <>
+              <Link to="/my-courses" className="hover:underline">
+                Moje kursy
+              </Link>
+              <Link to="/my-certificates" className="hover:underline">
+                Certyfikaty
+              </Link>
+            </>
           )}
           {auth.user?.role === 'Author' || auth.user?.role === 'Admin' ? (
             <Link to="/author" className="hover:underline">
@@ -108,6 +115,15 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/my-certificates"
+            element={
+              <ProtectedRoute>
+                <MyCertificates />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/certificates/:code" element={<CertificateDetail />} />
 
           <Route
             path="/author"

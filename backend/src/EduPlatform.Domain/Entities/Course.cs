@@ -15,6 +15,9 @@ public class Course : Entity
     public Guid AuthorId { get; set; }
     public User? Author { get; set; }
 
+    public List<string> Tags { get; set; } = new();
+
     public ICollection<Module> Modules { get; set; } = new List<Module>();
     public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
+    public ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
 }

@@ -25,8 +25,8 @@ public class AuthorController : ControllerBase
         _ai = ai;
     }
 
-    public record CreateCourseDto(string Title, string Description, CourseLanguage Language);
-    public record UpdateCourseDto(string Title, string Description, CourseLanguage Language, CourseVisibility Visibility, decimal? PriceMonthlyPln);
+    public record CreateCourseDto(string Title, string Description, CourseLanguage Language, List<string>? Tags = null);
+    public record UpdateCourseDto(string Title, string Description, CourseLanguage Language, CourseVisibility Visibility, decimal? PriceMonthlyPln, List<string>? Tags = null);
     public record CreateModuleDto(Guid CourseId, string Title, string Description, int Order);
     public record CreateLessonDto(Guid ModuleId, string Title, int Order, LessonType Type, string ContentMarkdown);
     public record UpsertExerciseDto(string Prompt, string StarterCode, string SolutionCode, string TestsCode, List<string> Hints);
@@ -61,6 +61,7 @@ public class AuthorController : ControllerBase
             Slug = slug,
             AuthorId = authorId,
             Visibility = CourseVisibility.Draft,
+            Tags = NormalizeTags(dto.Tags),
         };
         _db.Courses.Add(course);
         await _db.SaveChangesAsync(ct);
@@ -77,6 +78,10 @@ public class AuthorController : ControllerBase
         course.Description = dto.Description;
         course.Language = dto.Language;
         course.PriceMonthlyPln = dto.PriceMonthlyPln;
+        if (dto.Tags is not null)
+        {
+            course.Tags = NormalizeTags(dto.Tags);
+        }
         // Author can move between Draft/Private/PendingReview. Admin moves to Public.
         if (dto.Visibility != CourseVisibility.Public || _currentUser.Role == UserRole.Admin)
         {
@@ -472,6 +477,14 @@ public class AuthorController : ControllerBase
         trimmed = trimmed.TrimEnd('?', '.', '!');
         return trimmed.Length > 120 ? trimmed[..120] : trimmed;
     }
+
+    private static List<string> NormalizeTags(IEnumerable<string>? tags) =>
+        (tags ?? Array.Empty<string>())
+            .Select(t => t.Trim())
+            .Where(t => t.Length is > 0 and <= 32)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
 
     private static string Slugify(string input)
     {
