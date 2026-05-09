@@ -15,6 +15,11 @@ public class User : Entity
     public string? TotpSecret { get; set; }
     /// <summary>True dopiero po pierwszym poprawnym potwierdzeniu kodu (Setup → Enable).</summary>
     public bool TwoFactorEnabled { get; set; }
+
+    /// <summary>RODO: konto zanonimizowane na żądanie usera. Zachowujemy entity dla integralności
+    /// referencji (kursy/recenzje/odpowiedzi), ale czyścimy PII (email/displayName/avatar/secrets).</summary>
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
     /// <summary>Google sub (stable user id). Null dla kont email/hasło.</summary>
     public string? GoogleId { get; set; }
     /// <summary>GitHub user id (stable). Null dla kont email/hasło / Google.</summary>

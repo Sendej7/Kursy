@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import BillingProfileForm from '@/components/BillingProfileForm';
 import TwoFactorSetup from '@/components/TwoFactorSetup';
+import PrivacySection from '@/components/PrivacySection';
 
 export default function Account() {
   const auth = useAuth();
@@ -112,6 +113,11 @@ export default function Account() {
       </div>
 
       <Invoices />
+
+      <div className="border rounded-lg bg-white p-5">
+        <h2 className="font-semibold mb-2">Dane osobowe (RODO)</h2>
+        <PrivacySection />
+      </div>
 
       <div className="text-sm text-gray-600">
         <p>

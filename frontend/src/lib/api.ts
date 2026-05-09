@@ -375,6 +375,32 @@ export const api = {
       }),
   },
 
+  privacy: {
+    /** Pobiera JSON dump i zapisuje plik użytkownikowi (RODO art. 15). */
+    exportData: async () => {
+      const token = useAuth.getState().token;
+      const res = await fetch(`${BASE}/me/export`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new ApiError(res.status, body?.error ?? `${res.status} ${res.statusText}`, body);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kursy-pl-moje-dane-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    deleteAccount: (payload: { password?: string; twoFactorCode?: string }) =>
+      http<void>('/me/delete', { method: 'POST', body: JSON.stringify(payload) }),
+  },
+
   notifications: {
     list: (take = 20) =>
       http<
