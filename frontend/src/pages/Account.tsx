@@ -82,12 +82,20 @@ export default function Account() {
         {billing.data?.configured && !billing.data.isActive && (
           <div className="mt-3">
             <p className="text-sm text-gray-700">Brak aktywnej subskrypcji.</p>
-            <Link
-              to="/pricing"
-              className="inline-block mt-3 px-3 py-1.5 bg-black text-white rounded-md text-sm"
-            >
-              Zobacz cennik
-            </Link>
+            <div className="flex gap-2 mt-3">
+              <Link
+                to="/pricing"
+                className="px-3 py-1.5 bg-black text-white rounded-md text-sm"
+              >
+                Zobacz cennik
+              </Link>
+              <Link
+                to="/redeem"
+                className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+              >
+                Mam kod uczelni / firmy
+              </Link>
+            </div>
           </div>
         )}
       </div>

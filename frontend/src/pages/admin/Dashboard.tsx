@@ -28,7 +28,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
         <Link to="/admin/pending" className="border rounded-lg bg-white p-4 hover:bg-gray-50">
           <h2 className="font-semibold">Kursy do recenzji →</h2>
           <p className="text-xs text-gray-500 mt-1">
@@ -38,6 +38,10 @@ export default function AdminDashboard() {
         <Link to="/admin/users" className="border rounded-lg bg-white p-4 hover:bg-gray-50">
           <h2 className="font-semibold">Użytkownicy →</h2>
           <p className="text-xs text-gray-500 mt-1">Lista, zmiana ról</p>
+        </Link>
+        <Link to="/admin/orgs" className="border rounded-lg bg-white p-4 hover:bg-gray-50">
+          <h2 className="font-semibold">Organizacje (B2B) →</h2>
+          <p className="text-xs text-gray-500 mt-1">Uczelnie, firmy, kody hurtowe</p>
         </Link>
       </div>
     </section>

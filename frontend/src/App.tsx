@@ -18,6 +18,8 @@ import Analytics from './pages/author/Analytics';
 import PendingCourses from './pages/admin/PendingCourses';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
+import AdminOrganizations from './pages/admin/Organizations';
+import Redeem from './pages/Redeem';
 import ProtectedRoute from './components/ProtectedRoute';
 import StreakPill from './components/StreakPill';
 import Toaster from './components/Toaster';
@@ -249,6 +251,22 @@ export default function App() {
             element={
               <ProtectedRoute roles={['Admin']}>
                 <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/orgs"
+            element={
+              <ProtectedRoute roles={['Admin']}>
+                <AdminOrganizations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/redeem"
+            element={
+              <ProtectedRoute>
+                <Redeem />
               </ProtectedRoute>
             }
           />

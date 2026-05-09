@@ -562,6 +562,13 @@ export const api = {
     return res.json();
   },
 
+  // organizations / B2B codes
+  redeemCode: (code: string) =>
+    http<{ organizationName: string | null; accessUntil: string; grantsMonths: number }>(
+      '/me/redeem',
+      { method: 'POST', body: JSON.stringify({ code }) },
+    ),
+
   // admin
   admin: {
     stats: () =>
@@ -594,6 +601,42 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ role }),
       }),
+    listOrgs: () =>
+      http<
+        {
+          id: string;
+          name: string;
+          nip: string | null;
+          contactEmail: string | null;
+          ownerUserId: string | null;
+          ownerEmail: string | null;
+          codes: number;
+          redemptions: number;
+        }[]
+      >('/admin/orgs'),
+    createOrg: (payload: { name: string; nip?: string; contactEmail?: string; ownerUserId?: string }) =>
+      http<{ id: string }>('/admin/orgs', { method: 'POST', body: JSON.stringify(payload) }),
+    listOrgCodes: (orgId: string) =>
+      http<
+        {
+          id: string;
+          code: string;
+          maxSeats: number;
+          redeemedCount: number;
+          grantsMonths: number;
+          expiresAt: string | null;
+          revokedAt: string | null;
+          isUsable: boolean;
+        }[]
+      >(`/admin/orgs/${orgId}/codes`),
+    createOrgCode: (orgId: string, payload: { maxSeats: number; grantsMonths: number; expiresAt?: string | null }) =>
+      http<{ id: string; code: string; maxSeats: number; grantsMonths: number; expiresAt: string | null }>(
+        `/admin/orgs/${orgId}/codes`,
+        { method: 'POST', body: JSON.stringify(payload) },
+      ),
+    revokeOrgCode: (orgId: string, codeId: string) =>
+      http<void>(`/admin/orgs/${orgId}/codes/${codeId}/revoke`, { method: 'POST' }),
+
     pendingCourses: () =>
       http<
         {

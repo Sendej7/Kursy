@@ -23,6 +23,9 @@ public class AppDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<BillingProfile> BillingProfiles => Set<BillingProfile>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<OrganizationCode> OrganizationCodes => Set<OrganizationCode>();
+    public DbSet<OrganizationCodeRedemption> OrganizationCodeRedemptions => Set<OrganizationCodeRedemption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
