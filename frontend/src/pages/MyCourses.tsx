@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { CardSkeleton } from '@/components/Skeleton';
 
 export default function MyCourses() {
   const { data, isLoading, error } = useQuery({
@@ -12,10 +13,10 @@ export default function MyCourses() {
     <section className="max-w-4xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold mb-6">Moje kursy</h1>
 
-      {isLoading && <p className="text-gray-500">Ładowanie…</p>}
       {error && <p className="text-red-600">Nie udało się pobrać.</p>}
 
       <div className="space-y-3">
+        {isLoading && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
         {data?.map((c) => (
           <article key={c.id} className="border rounded-lg bg-white p-4">
             <div className="flex items-baseline justify-between gap-3">

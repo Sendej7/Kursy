@@ -237,7 +237,14 @@ export const api = {
   // lessons
   getLesson: (id: string) => http<LessonDetail>(`/lessons/${id}`),
   completeLesson: (id: string, timeSpentSeconds: number) =>
-    http<{ certificateIssued: boolean; certificateCode: string | null }>(`/lessons/${id}/complete`, {
+    http<{
+      certificateIssued: boolean;
+      certificateCode: string | null;
+      xpGained: number;
+      currentStreak: number;
+      totalXp: number;
+      streakBumped: boolean;
+    }>(`/lessons/${id}/complete`, {
       method: 'POST',
       body: JSON.stringify({ timeSpentSeconds }),
     }),
@@ -400,6 +407,21 @@ export const api = {
     http<CertificateDetail>(`/certificates/${code}`, { auth: false }),
 
   // me
+  myStats: () =>
+    http<{
+      totalXp: number;
+      currentStreakDays: number;
+      longestStreakDays: number;
+      lastActiveDay: string | null;
+      lessonsCompleted: number;
+      certificatesEarned: number;
+    }>('/me/stats'),
+
+  leaderboard: () =>
+    http<{ displayName: string; totalXp: number; currentStreakDays: number }[]>('/leaderboard', {
+      auth: false,
+    }),
+
   myCourses: () =>
     http<
       {

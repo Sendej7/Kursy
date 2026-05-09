@@ -14,12 +14,18 @@ public class LessonsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly CertificateService _certificates;
+    private readonly GamificationService _gamification;
 
-    public LessonsController(AppDbContext db, ICurrentUser currentUser, CertificateService certificates)
+    public LessonsController(
+        AppDbContext db,
+        ICurrentUser currentUser,
+        CertificateService certificates,
+        GamificationService gamification)
     {
         _db = db;
         _currentUser = currentUser;
         _certificates = certificates;
+        _gamification = gamification;
     }
 
     public record LessonDetailDto(
@@ -116,6 +122,7 @@ public class LessonsController : ControllerBase
         var existing = await _db.LessonProgresses
             .FirstOrDefaultAsync(p => p.UserId == userId && p.LessonId == id, ct);
 
+        var firstTimeCompletion = existing is null || !existing.Completed;
         if (existing is null)
         {
             _db.LessonProgresses.Add(new LessonProgress
@@ -136,6 +143,8 @@ public class LessonsController : ControllerBase
 
         await _db.SaveChangesAsync(ct);
 
+        var gamification = await _gamification.RecordLessonCompletionAsync(userId, firstTimeCompletion, ct);
+
         var lessonForCourse = await _db.Lessons
             .Where(l => l.Id == id)
             .Select(l => new { l.Module!.CourseId })
@@ -147,6 +156,14 @@ public class LessonsController : ControllerBase
             issued = await _certificates.IssueIfEligibleAsync(userId, lessonForCourse.CourseId, ct);
         }
 
-        return Ok(new { certificateIssued = issued is not null, certificateCode = issued?.Code });
+        return Ok(new
+        {
+            certificateIssued = issued is not null,
+            certificateCode = issued?.Code,
+            xpGained = gamification.XpGained,
+            currentStreak = gamification.CurrentStreak,
+            totalXp = gamification.TotalXp,
+            streakBumped = gamification.StreakBumped,
+        });
     }
 }

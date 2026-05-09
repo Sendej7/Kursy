@@ -113,10 +113,18 @@ export default function LessonView() {
           qc.invalidateQueries({ queryKey: ['me', 'courses'] });
           qc.invalidateQueries({ queryKey: ['me', 'certificates'] });
           notifyCompleted(lesson.id, displayName);
+          qc.invalidateQueries({ queryKey: ['me', 'stats'] });
+          qc.invalidateQueries({ queryKey: ['leaderboard'] });
           if (completion.certificateIssued) {
             toast.success('🎓 Wystawiono certyfikat — sprawdź zakładkę „Certyfikaty"!');
+          } else if (completion.streakBumped && completion.currentStreak >= 2) {
+            toast.success(
+              `Świetnie! +${completion.xpGained} XP · 🔥 seria ${completion.currentStreak} dni`,
+            );
+          } else if (completion.xpGained > 0) {
+            toast.success(`Świetnie! +${completion.xpGained} XP`);
           } else {
-            toast.success('Świetnie! Lekcja ukończona.');
+            toast.success('Lekcja ukończona ponownie.');
           }
         }
       } catch {

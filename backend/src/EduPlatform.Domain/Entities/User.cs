@@ -10,6 +10,15 @@ public class User : Entity
     public UserRole Role { get; set; } = UserRole.Student;
     public DateTime? SubscriptionUntil { get; set; }
 
+    /// <summary>Suma XP zdobytych za ukończone lekcje.</summary>
+    public int TotalXp { get; set; }
+    /// <summary>Aktualna seria dni z aktywnością (ukończenie lekcji).</summary>
+    public int CurrentStreakDays { get; set; }
+    /// <summary>Najdłuższa kiedykolwiek osiągnięta seria.</summary>
+    public int LongestStreakDays { get; set; }
+    /// <summary>Data ostatniego dnia z aktywnością (UTC, bez godziny).</summary>
+    public DateTime? LastActiveDay { get; set; }
+
     public ICollection<Course> AuthoredCourses { get; set; } = new List<Course>();
     public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
     public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
