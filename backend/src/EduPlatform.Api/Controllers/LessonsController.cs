@@ -63,6 +63,44 @@ public class LessonsController : ControllerBase
             completed));
     }
 
+    public record LessonNavDto(
+        Guid? PrevLessonId,
+        string? PrevTitle,
+        Guid? NextLessonId,
+        string? NextTitle,
+        Guid CourseId,
+        string CourseSlug,
+        string CourseTitle,
+        int IndexInCourse,
+        int CourseTotalLessons);
+
+    [HttpGet("{id:guid}/nav")]
+    public async Task<ActionResult<LessonNavDto>> Navigation(Guid id, CancellationToken ct)
+    {
+        var current = await _db.Lessons
+            .Include(l => l.Module)
+                .ThenInclude(m => m!.Course)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (current?.Module?.Course is null) return NotFound();
+
+        var courseId = current.Module.CourseId;
+        var allLessons = await _db.Lessons
+            .Where(l => l.Module!.CourseId == courseId)
+            .OrderBy(l => l.Module!.Order).ThenBy(l => l.Order)
+            .Select(l => new { l.Id, l.Title })
+            .ToListAsync(ct);
+
+        var index = allLessons.FindIndex(x => x.Id == id);
+        var prev = index > 0 ? allLessons[index - 1] : null;
+        var next = index < allLessons.Count - 1 ? allLessons[index + 1] : null;
+
+        return Ok(new LessonNavDto(
+            prev?.Id, prev?.Title,
+            next?.Id, next?.Title,
+            courseId, current.Module.Course.Slug, current.Module.Course.Title,
+            index + 1, allLessons.Count));
+    }
+
     public record CompleteDto(int TimeSpentSeconds);
 
     [Authorize]

@@ -180,6 +180,36 @@ public class AuthorController : ControllerBase
 
     public record CourseOutlineDto(string SourceText, string TargetLanguage = "Python", string? CourseTitleHint = null);
 
+    [HttpPost("extract-pdf")]
+    [RequestSizeLimit(20 * 1024 * 1024)] // 20MB
+    public async Task<IActionResult> ExtractPdf([FromForm] IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) return BadRequest(new { error = "Brak pliku." });
+        if (!file.ContentType.Contains("pdf", StringComparison.OrdinalIgnoreCase) &&
+            !file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { error = "Tylko pliki PDF." });
+        }
+
+        await using var stream = file.OpenReadStream();
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+
+        var sb = new System.Text.StringBuilder();
+        using (var doc = UglyToad.PdfPig.PdfDocument.Open(ms))
+        {
+            foreach (var page in doc.GetPages())
+            {
+                sb.AppendLine(page.Text);
+                sb.AppendLine();
+            }
+        }
+
+        var text = sb.ToString();
+        return Ok(new { text, length = text.Length, fileName = file.FileName });
+    }
+
     [HttpPost("outline")]
     public async Task<IActionResult> ProposeOutline([FromBody] CourseOutlineDto dto, CancellationToken ct)
     {

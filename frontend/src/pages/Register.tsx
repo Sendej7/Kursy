@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { toast } from '@/lib/toast';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -20,7 +21,8 @@ export default function Register() {
     try {
       const res = await api.register(email, password, displayName, becomeAuthor);
       setSession(res.token, res.expiresAt, res.refreshToken, res.user);
-      navigate('/courses', { replace: true });
+      toast.success('Konto utworzone. Powodzenia!');
+      navigate(becomeAuthor ? '/author' : '/courses', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Coś poszło nie tak.');
     } finally {

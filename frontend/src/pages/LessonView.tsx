@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
 import { useAuth } from '@/lib/auth';
 import { joinLesson, notifyCompleted } from '@/lib/lessonHub';
+import { toast } from '@/lib/toast';
 
 export default function LessonView() {
   const { lessonId = '' } = useParams();
@@ -21,6 +22,12 @@ export default function LessonView() {
   const { data: lesson, isLoading, error } = useQuery({
     queryKey: ['lesson', lessonId],
     queryFn: () => api.getLesson(lessonId),
+    enabled: !!lessonId,
+  });
+
+  const { data: nav } = useQuery({
+    queryKey: ['lesson', lessonId, 'nav'],
+    queryFn: () => api.lessonNav(lessonId),
     enabled: !!lessonId,
   });
 
@@ -103,7 +110,9 @@ export default function LessonView() {
         if (res.passed) {
           await api.completeLesson(lesson.id, seconds);
           qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
+          qc.invalidateQueries({ queryKey: ['me', 'courses'] });
           notifyCompleted(lesson.id, displayName);
+          toast.success('Świetnie! Lekcja ukończona.');
         }
       } catch {
         /* nie blokuj UI */
@@ -121,18 +130,28 @@ export default function LessonView() {
 
   return (
     <section className="max-w-6xl mx-auto px-4 py-6 space-y-3">
-      {(presence > 0 || recentCompletions.length > 0) && (
-        <div className="flex items-center justify-end gap-3 text-xs text-gray-600">
-          {presence > 0 && (
-            <span className="px-2 py-1 bg-green-50 border border-green-200 rounded-full">
-              ● {presence} {presence === 1 ? 'student' : 'studentów'} teraz tutaj
-            </span>
+      {nav && (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600 border-b pb-2">
+          <Link to={`/courses/${nav.courseSlug}`} className="hover:underline">
+            ← {nav.courseTitle}
+          </Link>
+          <span>
+            Lekcja {nav.indexInCourse} / {nav.courseTotalLessons}
+          </span>
+          {(presence > 0 || recentCompletions.length > 0) && (
+            <div className="flex items-center gap-2">
+              {presence > 0 && (
+                <span className="px-2 py-1 bg-green-50 border border-green-200 rounded-full">
+                  ● {presence} {presence === 1 ? 'student' : 'studentów'} teraz tutaj
+                </span>
+              )}
+              {recentCompletions.map((name, i) => (
+                <span key={`${name}-${i}`} className="px-2 py-1 bg-amber-50 border border-amber-200 rounded-full">
+                  🎉 {name} właśnie skończył
+                </span>
+              ))}
+            </div>
           )}
-          {recentCompletions.map((name, i) => (
-            <span key={`${name}-${i}`} className="px-2 py-1 bg-amber-50 border border-amber-200 rounded-full">
-              🎉 {name} właśnie skończył
-            </span>
-          ))}
         </div>
       )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -203,6 +222,27 @@ export default function LessonView() {
         </div>
       )}
       </div>
+
+      {nav && (
+        <div className="flex justify-between border-t pt-3">
+          {nav.prevLessonId ? (
+            <Link
+              to={`/courses/${nav.courseSlug}/lessons/${nav.prevLessonId}`}
+              className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+            >
+              ← {nav.prevTitle}
+            </Link>
+          ) : <span />}
+          {nav.nextLessonId ? (
+            <Link
+              to={`/courses/${nav.courseSlug}/lessons/${nav.nextLessonId}`}
+              className="px-3 py-1.5 bg-black text-white rounded-md text-sm"
+            >
+              {nav.nextTitle} →
+            </Link>
+          ) : <span className="text-xs text-gray-500">Ostatnia lekcja w kursie</span>}
+        </div>
+      )}
     </section>
   );
 }
