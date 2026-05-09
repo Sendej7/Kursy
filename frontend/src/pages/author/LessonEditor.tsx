@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
 import CodeEditor from '@/components/CodeEditor';
+import MarkdownEditor from '@/components/MarkdownEditor';
 import { api, type LessonType } from '@/lib/api';
 
 export default function LessonEditor() {
@@ -112,13 +111,8 @@ export default function LessonEditor() {
             </select>
           </label>
           <label className="block">
-            <span className="text-sm">Treść (markdown)</span>
-            <textarea
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm font-mono"
-              rows={14}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
+            <span className="text-sm block mb-1">Treść (markdown)</span>
+            <MarkdownEditor value={content} onChange={setContent} rows={14} />
           </label>
           <button
             className="px-3 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
@@ -130,12 +124,7 @@ export default function LessonEditor() {
         </div>
 
         <div className="space-y-3">
-          <h3 className="font-semibold text-sm">Podgląd</h3>
-          <div className="border rounded-lg bg-white p-4 prose prose-sm max-w-none min-h-[200px]">
-            <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
-          </div>
-
-          <h3 className="font-semibold text-sm pt-3">Zadanie</h3>
+          <h3 className="font-semibold text-sm">Zadanie</h3>
           <label className="block">
             <span className="text-xs">Polecenie</span>
             <input
