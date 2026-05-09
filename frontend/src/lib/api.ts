@@ -300,6 +300,27 @@ export const api = {
   resendVerification: () =>
     http<{ ok: boolean }>('/auth/resend-verification', { method: 'POST' }),
 
+  search: (q: string, take = 10) =>
+    http<{
+      courses: { id: string; slug: string; title: string; description: string; language: string }[];
+      lessons: {
+        id: string;
+        title: string;
+        courseId: string;
+        courseSlug: string;
+        courseTitle: string;
+        snippet: string;
+      }[];
+      questions: {
+        id: string;
+        title: string;
+        lessonId: string;
+        courseSlug: string;
+        answerCount: number;
+        isResolved: boolean;
+      }[];
+    }>(`/search?q=${encodeURIComponent(q)}&take=${take}`, { auth: false }),
+
   qa: {
     listForLesson: (lessonId: string) =>
       http<
