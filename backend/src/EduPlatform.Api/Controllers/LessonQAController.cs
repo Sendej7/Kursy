@@ -14,12 +14,14 @@ public class LessonQAController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly NotificationService _notifications;
+    private readonly AchievementService _achievements;
 
-    public LessonQAController(AppDbContext db, ICurrentUser currentUser, NotificationService notifications)
+    public LessonQAController(AppDbContext db, ICurrentUser currentUser, NotificationService notifications, AchievementService achievements)
     {
         _db = db;
         _currentUser = currentUser;
         _notifications = notifications;
+        _achievements = achievements;
     }
 
     public record QuestionListItemDto(
@@ -90,6 +92,9 @@ public class LessonQAController : ControllerBase
             Body = string.IsNullOrWhiteSpace(dto.Body) ? null : dto.Body.Trim(),
         };
         _db.LessonQuestions.Add(question);
+        await _db.SaveChangesAsync(ct);
+
+        await _achievements.CheckAndAwardAsync(userId, ct);
         await _db.SaveChangesAsync(ct);
         return Ok(new { question.Id });
     }
@@ -198,6 +203,13 @@ public class LessonQAController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Po accept'ie autor odpowiedzi może odblokować odznakę "Pomocna dłoń".
+        if (!wasAccepted && answer.AuthorId != userId)
+        {
+            await _achievements.CheckAndAwardAsync(answer.AuthorId, ct);
+            await _db.SaveChangesAsync(ct);
+        }
         return NoContent();
     }
 

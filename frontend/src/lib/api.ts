@@ -398,6 +398,18 @@ export const api = {
       }),
   },
 
+  achievements: () =>
+    http<
+      {
+        type: string;
+        name: string;
+        description: string;
+        icon: string;
+        earnedAt: string | null;
+        earned: boolean;
+      }[]
+    >('/me/achievements'),
+
   sessions: {
     list: () =>
       http<{ id: string; userAgent: string | null; createdAt: string; expiresAt: string }[]>(

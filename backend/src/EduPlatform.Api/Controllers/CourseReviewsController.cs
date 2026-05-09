@@ -15,12 +15,14 @@ public class CourseReviewsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly NotificationService _notifications;
+    private readonly AchievementService _achievements;
 
-    public CourseReviewsController(AppDbContext db, ICurrentUser currentUser, NotificationService notifications)
+    public CourseReviewsController(AppDbContext db, ICurrentUser currentUser, NotificationService notifications, AchievementService achievements)
     {
         _db = db;
         _currentUser = currentUser;
         _notifications = notifications;
+        _achievements = achievements;
     }
 
     public record ReviewDto(
@@ -112,6 +114,12 @@ public class CourseReviewsController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
+
+        if (isNew)
+        {
+            await _achievements.CheckAndAwardAsync(userId, ct);
+            await _db.SaveChangesAsync(ct);
+        }
         return NoContent();
     }
 
