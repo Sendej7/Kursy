@@ -49,6 +49,7 @@ services:
       Smtp__Port: "${SMTP_PORT:-1025}"
       Smtp__UseStartTls: "false"
       Smtp__FromEmail: "${SMTP_FROM:-no-reply@kursy.local}"
+      Sentry__Dsn: "${SENTRY_DSN:-}"
     ports:
       - "5080:8080"
     healthcheck:

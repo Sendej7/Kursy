@@ -15,8 +15,43 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog: console JSON dla prod (parsowalne przez Loki/Datadog), human dla dev.
+// Sentry sink doczepia się gdy SENTRY_DSN ustawione.
+builder.Host.UseSerilog((ctx, services, lc) =>
+{
+    lc.ReadFrom.Configuration(ctx.Configuration)
+      .ReadFrom.Services(services)
+      .Enrich.FromLogContext()
+      .Enrich.WithMachineName()
+      .Enrich.WithEnvironmentName();
+
+    if (ctx.HostingEnvironment.IsDevelopment())
+    {
+        lc.WriteTo.Console(
+            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
+    }
+    else
+    {
+        // Compact JSON — jedno-linia per event, łatwo grep/parse.
+        lc.WriteTo.Console(new Serilog.Formatting.Compact.RenderedCompactJsonFormatter());
+    }
+
+    var sentryDsn = ctx.Configuration["Sentry:Dsn"] ?? Environment.GetEnvironmentVariable("SENTRY_DSN");
+    if (!string.IsNullOrEmpty(sentryDsn))
+    {
+        lc.WriteTo.Sentry(s =>
+        {
+            s.Dsn = sentryDsn;
+            s.MinimumEventLevel = Serilog.Events.LogEventLevel.Warning;
+            s.MinimumBreadcrumbLevel = Serilog.Events.LogEventLevel.Information;
+            s.Environment = ctx.HostingEnvironment.EnvironmentName;
+        });
+    }
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
@@ -156,6 +191,19 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Strukturalne request logi: jedna linia per request z method, ścieżką, kodem,
+// czasem, user-id (z claim'a). Wszystko parsowalne w Loki/Datadog.
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.EnrichDiagnosticContext = (diag, http) =>
+    {
+        var userId = http.User?.FindFirst("sub")?.Value
+            ?? http.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(userId)) diag.Set("UserId", userId);
+        diag.Set("UserAgent", http.Request.Headers.UserAgent.ToString());
+    };
+});
 
 app.UseCors();
 app.UseRouting();
