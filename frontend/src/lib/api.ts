@@ -862,6 +862,26 @@ export const api = {
 
   // admin
   admin: {
+    metrics: () =>
+      http<{
+        users: { total: number; new7d: number; new30d: number; deleted: number };
+        subscriptions: { activeCount: number; mrrPln: number; canceledLast30d: number };
+        content: {
+          coursesPublic: number;
+          coursesPending: number;
+          coursesDraft: number;
+          lessonsTotal: number;
+          reviewsTotal: number;
+        };
+        engagement: {
+          lessonsCompletedLast7d: number;
+          lessonsCompletedLast30d: number;
+          certificatesIssued: number;
+          dau: number;
+          wau: number;
+          questionsLast7d: number;
+        };
+      }>('/admin/metrics'),
     promoCodes: {
       list: () =>
         http<

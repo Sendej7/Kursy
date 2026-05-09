@@ -47,6 +47,10 @@ export default function AdminDashboard() {
           <h2 className="font-semibold">Kody promocyjne →</h2>
           <p className="text-xs text-gray-500 mt-1">Stripe promo codes (LAUNCH20, BLACK60)</p>
         </Link>
+        <Link to="/admin/metrics" className="border rounded-lg bg-white p-4 hover:bg-gray-50">
+          <h2 className="font-semibold">Metryki platformy →</h2>
+          <p className="text-xs text-gray-500 mt-1">DAU, MRR, subskrypcje, lekcje, churn</p>
+        </Link>
       </div>
     </section>
   );
