@@ -23,6 +23,7 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const QuestionDetail = lazy(() => import('./pages/QuestionDetail'));
 const SearchResults = lazy(() => import('./pages/SearchResults'));
 const MyFavorites = lazy(() => import('./pages/MyFavorites'));
+const MyAiHistory = lazy(() => import('./pages/MyAiHistory'));
 const MyCourses = lazy(() => import('./pages/MyCourses'));
 const MyCertificates = lazy(() => import('./pages/MyCertificates'));
 const CertificateDetail = lazy(() => import('./pages/CertificateDetail'));
@@ -180,6 +181,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <MyFavorites />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-ai-history"
+              element={
+                <ProtectedRoute>
+                  <MyAiHistory />
                 </ProtectedRoute>
               }
             />

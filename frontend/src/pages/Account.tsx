@@ -129,6 +129,10 @@ export default function Account() {
             Ulubione
           </Link>
           {' · '}
+          <Link to="/my-ai-history" className="underline">
+            Rozmowy z AI
+          </Link>
+          {' · '}
           <Link to="/my-certificates" className="underline">
             Moje certyfikaty
           </Link>

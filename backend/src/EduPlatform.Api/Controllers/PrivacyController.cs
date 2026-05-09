@@ -20,12 +20,21 @@ public class PrivacyController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly TotpService _totp;
+    private readonly ILogger<PrivacyController> _logger;
+    private readonly Microsoft.Extensions.Options.IOptions<EduPlatform.Api.Billing.StripeOptions> _stripeOptions;
 
-    public PrivacyController(AppDbContext db, ICurrentUser currentUser, TotpService totp)
+    public PrivacyController(
+        AppDbContext db,
+        ICurrentUser currentUser,
+        TotpService totp,
+        ILogger<PrivacyController> logger,
+        Microsoft.Extensions.Options.IOptions<EduPlatform.Api.Billing.StripeOptions> stripeOptions)
     {
         _db = db;
         _currentUser = currentUser;
         _totp = totp;
+        _logger = logger;
+        _stripeOptions = stripeOptions;
     }
 
     /// <summary>Zwraca pełen zrzut danych użytkownika jako JSON (RODO art. 15 — prawo dostępu).</summary>
@@ -153,6 +162,9 @@ public class PrivacyController : ControllerBase
         }
         // OAuth-only bez 2FA — pozwalamy bez dodatkowego potwierdzenia (i tak jest auth).
 
+        // Auto-cancel Stripe subscription jeśli aktywna (best-effort).
+        await TryCancelStripeSubscriptionAsync(userId, ct);
+
         // Anonimizacja PII
         var stamp = Guid.NewGuid().ToString("N");
         user.Email = $"deleted-{stamp}@kursy.invalid";
@@ -185,5 +197,31 @@ public class PrivacyController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Anuluje aktywną subskrypcję Stripe usera (best-effort). Jeśli Stripe nie skonfigurowany
+    /// albo brak Stripe sub — no-op. Failure logujemy, ale nie failujemy delete.
+    /// </summary>
+    private async Task TryCancelStripeSubscriptionAsync(Guid userId, CancellationToken ct)
+    {
+        if (!_stripeOptions.Value.IsConfigured) return;
+
+        var sub = await _db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        if (sub?.StripeSubscriptionId is null) return;
+
+        try
+        {
+            Stripe.StripeConfiguration.ApiKey = _stripeOptions.Value.SecretKey;
+            var service = new Stripe.SubscriptionService();
+            await service.CancelAsync(sub.StripeSubscriptionId,
+                new Stripe.SubscriptionCancelOptions { InvoiceNow = false, Prorate = false },
+                cancellationToken: ct);
+            sub.Status = Domain.Entities.SubscriptionStatus.Canceled;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to cancel Stripe subscription {SubId} during account delete", sub.StripeSubscriptionId);
+        }
     }
 }
