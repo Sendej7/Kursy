@@ -81,6 +81,32 @@ public static class EmailTemplates
         return new EmailMessage(toEmail, toName, "Witaj na Kursy.pl 👋", html);
     }
 
+    public static EmailMessage DailyGoalReminder(string toEmail, string toName, int goal, int doneToday, string appUrl)
+    {
+        var remaining = Math.Max(0, goal - doneToday);
+        var html = $$"""
+        <!doctype html>
+        <html lang="pl">
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111;">
+          <h1 style="font-size: 18px;">🎯 Dziś została jeszcze nauka do celu</h1>
+          <p>Cześć {{toName}},</p>
+          <p>Twój cel to <strong>{{goal}} lekcji dziennie</strong>. Dziś przeszedłeś {{doneToday}}; pozostało {{remaining}}.</p>
+          <p style="margin: 24px 0;">
+            <a href="{{appUrl}}/my-courses" style="display: inline-block; padding: 10px 16px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
+              Wracam się uczyć
+            </a>
+          </p>
+          <p style="font-size: 12px; color: #666;">
+            Możesz wyłączyć przypomnienia w <a href="{{appUrl}}/account">Konto → Cel dzienny</a>.
+          </p>
+        </body>
+        </html>
+        """;
+        var text = $"Cześć {toName}, dziś {doneToday}/{goal} lekcji — pozostało {remaining}. {appUrl}/my-courses";
+        return new EmailMessage(toEmail, toName, "Dziś jeszcze nauka do celu — Kursy.pl", html, text);
+    }
+
     public static EmailMessage VerifyEmail(string toEmail, string toName, string verifyUrl)
     {
         var html = $$"""
