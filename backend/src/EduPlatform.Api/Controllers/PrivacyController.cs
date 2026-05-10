@@ -118,6 +118,11 @@ public class PrivacyController : ControllerBase
             .Select(n => new { n.LessonId, n.Content, n.UpdatedAt })
             .ToListAsync(ct);
 
+        var favorites = await _db.CourseFavorites
+            .Where(f => f.UserId == userId)
+            .Select(f => new { f.CourseId, courseTitle = f.Course!.Title, f.CreatedAt })
+            .ToListAsync(ct);
+
         return new JsonResult(new
         {
             exportedAt = DateTime.UtcNow,
@@ -134,6 +139,7 @@ public class PrivacyController : ControllerBase
             answers,
             notifications,
             lessonNotes,
+            favorites,
         })
         {
             ContentType = "application/json",

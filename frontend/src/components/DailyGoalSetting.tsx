@@ -3,6 +3,36 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
+function StreakReminderToggle() {
+  const qc = useQueryClient();
+  const data = useQuery({
+    queryKey: ['streak-reminder'],
+    queryFn: () => api.streakReminder.get(),
+  });
+  const save = useMutation({
+    mutationFn: (enabled: boolean) => api.streakReminder.set(enabled),
+    onSuccess: () => {
+      toast.success('Zapisano.');
+      qc.invalidateQueries({ queryKey: ['streak-reminder'] });
+    },
+  });
+
+  if (data.isLoading || data.data === undefined) return null;
+
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        checked={data.data.enabled}
+        onChange={(e) => save.mutate(e.target.checked)}
+      />
+      <span>
+        Wysyłaj wieczorne przypomnienie „🔥 nie strać streaka" gdy mam aktywny streak ≥ 3 dni
+      </span>
+    </label>
+  );
+}
+
 const PRESETS = [0, 1, 2, 3, 5];
 
 export default function DailyGoalSetting() {
@@ -73,6 +103,8 @@ export default function DailyGoalSetting() {
           <span>Wysyłaj email-przypomnienie wieczorem, jeśli nie spełniłem celu</span>
         </label>
       )}
+
+      <StreakReminderToggle />
 
       <button
         onClick={() => save.mutate()}
