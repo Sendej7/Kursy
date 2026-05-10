@@ -133,6 +133,33 @@ public static class EmailTemplates
         return new EmailMessage(toEmail, toName, $"🔥 Streak {currentStreak} dni — nie zerwij go", html, text);
     }
 
+    public static EmailMessage FirstCertificate(string toEmail, string toName, string courseTitle, string certCode, string appUrl)
+    {
+        var html = $$"""
+        <!doctype html>
+        <html lang="pl">
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111;">
+          <h1 style="font-size: 24px;">🎓 Twój pierwszy certyfikat</h1>
+          <p>Cześć {{toName}},</p>
+          <p>Gratulacje! Ukończyłeś kurs <strong>{{courseTitle}}</strong> i właśnie otrzymałeś pierwszy
+             certyfikat na Kursy.pl.</p>
+          <p>Link do publicznej weryfikacji (możesz wrzucić na CV / LinkedIn):</p>
+          <p style="margin: 16px 0;">
+            <a href="{{appUrl}}/certificates/{{certCode}}" style="display: inline-block; padding: 10px 16px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
+              Zobacz certyfikat
+            </a>
+          </p>
+          <p style="font-size: 12px; color: #666;">
+            Kod: <code>{{certCode}}</code>. Każdy z tym linkiem może potwierdzić jego autentyczność.
+          </p>
+        </body>
+        </html>
+        """;
+        var text = $"Gratulacje, ukończyłeś {courseTitle}! Twój certyfikat: {appUrl}/certificates/{certCode}";
+        return new EmailMessage(toEmail, toName, $"🎓 Pierwszy certyfikat — {courseTitle}", html, text);
+    }
+
     public static EmailMessage VerifyEmail(string toEmail, string toName, string verifyUrl)
     {
         var html = $$"""

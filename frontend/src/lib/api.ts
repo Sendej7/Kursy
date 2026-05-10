@@ -886,6 +886,15 @@ export const api = {
       }),
   },
 
+  streakReminder: {
+    get: () => http<{ enabled: boolean }>('/me/streak-reminder'),
+    set: (enabled: boolean) =>
+      http<void>('/me/streak-reminder', {
+        method: 'PUT',
+        body: JSON.stringify({ enabled }),
+      }),
+  },
+
   leaderboard: () =>
     http<{ displayName: string; totalXp: number; currentStreakDays: number }[]>('/leaderboard', {
       auth: false,

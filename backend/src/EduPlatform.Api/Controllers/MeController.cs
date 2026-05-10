@@ -149,4 +149,28 @@ public class MeController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
+
+    public record StreakReminderDto(bool Enabled);
+
+    [HttpGet("streak-reminder")]
+    public async Task<IActionResult> GetStreakReminder(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var enabled = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.StreakReminderEnabled)
+            .FirstOrDefaultAsync(ct);
+        return Ok(new StreakReminderDto(enabled));
+    }
+
+    [HttpPut("streak-reminder")]
+    public async Task<IActionResult> SetStreakReminder([FromBody] StreakReminderDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Unauthorized();
+        user.StreakReminderEnabled = dto.Enabled;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }
