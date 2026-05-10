@@ -46,8 +46,31 @@ export default function CourseEditor() {
         language: course!.language,
         priceMonthlyPln: course!.priceMonthlyPln,
         visibility,
+        aiMentorPromptOverride: course!.aiMentorPromptOverride,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['author', 'courses'] }),
+  });
+
+  const [aiPromptDraft, setAiPromptDraft] = useState<string | null>(null);
+  const aiPromptCurrent = aiPromptDraft ?? course?.aiMentorPromptOverride ?? '';
+  const aiPromptDirty = aiPromptDraft !== null && aiPromptDraft !== (course?.aiMentorPromptOverride ?? '');
+
+  const saveAiPrompt = useMutation({
+    mutationFn: () =>
+      api.author.updateCourse(id, {
+        title: course!.title,
+        description: course!.description,
+        language: course!.language,
+        priceMonthlyPln: course!.priceMonthlyPln,
+        visibility: course!.visibility,
+        aiMentorPromptOverride: aiPromptCurrent.trim() || null,
+      }),
+    onSuccess: () => {
+      toast.success('Instrukcje AI zaktualizowane.');
+      setAiPromptDraft(null);
+      qc.invalidateQueries({ queryKey: ['author', 'courses'] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Błąd.'),
   });
 
   const duplicate = useMutation({
@@ -119,6 +142,34 @@ export default function CourseEditor() {
           </Link>
         </div>
       </div>
+
+      <details className="mb-6 border rounded-lg bg-white p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-gray-700 hover:text-black">
+          🤖 AI mentor — dodatkowe instrukcje (opcjonalne)
+        </summary>
+        <p className="text-xs text-gray-500 mt-2">
+          Doczepione do system promptu mentora dla studentów Twojego kursu. Przykład: „odpowiadaj
+          zwięźle", „używaj analogii kuchennych", „zawsze polecaj bibliotekę pandas zamiast numpy".
+        </p>
+        <textarea
+          className="mt-2 w-full border rounded-md px-3 py-2 text-sm"
+          rows={4}
+          maxLength={2000}
+          placeholder="Np. „W tym kursie używamy stylu PEP8. Mentor powinien chwalić zwięzłość."
+          value={aiPromptCurrent}
+          onChange={(e) => setAiPromptDraft(e.target.value)}
+        />
+        <div className="flex items-center justify-between mt-2 text-xs">
+          <span className="text-gray-400">{aiPromptCurrent.length} / 2000</span>
+          <button
+            onClick={() => saveAiPrompt.mutate()}
+            disabled={!aiPromptDirty || saveAiPrompt.isPending}
+            className="px-3 py-1 bg-black text-white rounded-md disabled:opacity-50"
+          >
+            {saveAiPrompt.isPending ? 'Zapisuję…' : 'Zapisz instrukcje'}
+          </button>
+        </div>
+      </details>
 
       <h2 className="font-semibold mb-2">Moduły i lekcje</h2>
       <p className="text-xs text-gray-500 mb-3">

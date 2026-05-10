@@ -12,6 +12,10 @@ public class Course : Entity
     public decimal? PriceMonthlyPln { get; set; }
     public string? CoverImageUrl { get; set; }
 
+    /// <summary>Dodatek do system promptu AI mentora dla lekcji w tym kursie. Max 2000 znaków.
+    /// Null = używa default.</summary>
+    public string? AiMentorPromptOverride { get; set; }
+
     public Guid AuthorId { get; set; }
     public User? Author { get; set; }
 

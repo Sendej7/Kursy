@@ -27,7 +27,7 @@ public class AuthorController : ControllerBase
     }
 
     public record CreateCourseDto(string Title, string Description, CourseLanguage Language, List<string>? Tags = null);
-    public record UpdateCourseDto(string Title, string Description, CourseLanguage Language, CourseVisibility Visibility, decimal? PriceMonthlyPln, List<string>? Tags = null);
+    public record UpdateCourseDto(string Title, string Description, CourseLanguage Language, CourseVisibility Visibility, decimal? PriceMonthlyPln, List<string>? Tags = null, string? AiMentorPromptOverride = null);
     public record CreateModuleDto(Guid CourseId, string Title, string Description, int Order);
     public record CreateLessonDto(Guid ModuleId, string Title, int Order, LessonType Type, string ContentMarkdown, string? VideoUrl = null);
     public record UpsertExerciseDto(string Prompt, string StarterCode, string SolutionCode, string TestsCode, List<string> Hints);
@@ -40,7 +40,7 @@ public class AuthorController : ControllerBase
         var list = await _db.Courses
             .Where(c => c.AuthorId == authorId)
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new { c.Id, c.Title, c.Slug, c.Description, c.Language, c.Visibility, c.PriceMonthlyPln })
+            .Select(c => new { c.Id, c.Title, c.Slug, c.Description, c.Language, c.Visibility, c.PriceMonthlyPln, c.AiMentorPromptOverride })
             .ToListAsync(ct);
         return Ok(list);
     }
@@ -79,6 +79,12 @@ public class AuthorController : ControllerBase
         course.Description = dto.Description;
         course.Language = dto.Language;
         course.PriceMonthlyPln = dto.PriceMonthlyPln;
+        // Trim + clamp do 2000 (limit z prompt-build); pusty string → null żeby
+        // AI używał default.
+        var aiOverride = dto.AiMentorPromptOverride?.Trim();
+        course.AiMentorPromptOverride = string.IsNullOrEmpty(aiOverride)
+            ? null
+            : (aiOverride.Length > 2000 ? aiOverride[..2000] : aiOverride);
         if (dto.Tags is not null)
         {
             course.Tags = NormalizeTags(dto.Tags);

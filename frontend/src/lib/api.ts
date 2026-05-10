@@ -147,6 +147,7 @@ export interface AuthorCourseRow {
   language: CourseLanguage;
   visibility: CourseVisibility;
   priceMonthlyPln: number | null;
+  aiMentorPromptOverride: string | null;
 }
 
 export interface LessonAnalyticsRow {
@@ -622,6 +623,7 @@ export const api = {
         visibility: CourseVisibility;
         priceMonthlyPln: number | null;
         tags?: string[];
+        aiMentorPromptOverride?: string | null;
       },
     ) =>
       http<void>(`/author/courses/${id}`, {
