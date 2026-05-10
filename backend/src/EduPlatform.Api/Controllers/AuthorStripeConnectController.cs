@@ -23,19 +23,22 @@ public class AuthorStripeConnectController : ControllerBase
     private readonly ICurrentUser _currentUser;
     private readonly IConfiguration _config;
     private readonly ILogger<AuthorStripeConnectController> _logger;
+    private readonly EduPlatform.Api.Billing.AuthorEarningsCalculator _calc;
 
     public AuthorStripeConnectController(
         AppDbContext db,
         IOptions<StripeOptions> options,
         ICurrentUser currentUser,
         IConfiguration config,
-        ILogger<AuthorStripeConnectController> logger)
+        ILogger<AuthorStripeConnectController> logger,
+        EduPlatform.Api.Billing.AuthorEarningsCalculator calc)
     {
         _db = db;
         _options = options.Value;
         _currentUser = currentUser;
         _config = config;
         _logger = logger;
+        _calc = calc;
         if (!string.IsNullOrEmpty(_options.SecretKey))
         {
             StripeConfiguration.ApiKey = _options.SecretKey;
@@ -157,5 +160,91 @@ public class AuthorStripeConnectController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    public record EarningDto(
+        Guid Id, DateTime PeriodStart, DateTime PeriodEnd,
+        long AuthorShareGr, decimal AuthorSharePln,
+        int ActiveStudents, int TotalActive,
+        bool Transferred, DateTime? TransferredAt, string? StripeTransferId);
+
+    /// <summary>Lista zarobków autora (od najnowszego). Zwraca grosze i PLN, żeby UI nie liczyło.</summary>
+    [HttpGet("earnings")]
+    public async Task<IActionResult> Earnings(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var rows = await _db.AuthorEarnings
+            .Where(e => e.AuthorId == userId)
+            .OrderByDescending(e => e.PeriodStart)
+            .Select(e => new EarningDto(
+                e.Id, e.PeriodStart, e.PeriodEnd,
+                e.AuthorShareGr, e.AuthorShareGr / 100m,
+                e.ActiveStudentsOnAuthorCourses, e.TotalActiveStudents,
+                e.StripeTransferId != null, e.TransferredAt, e.StripeTransferId))
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    /// <summary>Wykonuje Stripe Transfer dla wskazanego zarobku — autor musi mieć aktywne Connect.</summary>
+    [HttpPost("earnings/{id:guid}/transfer")]
+    public async Task<IActionResult> TransferEarning(Guid id, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        if (!_options.IsConfigured) return StatusCode(503, new { error = "Stripe nieskonfigurowany." });
+
+        var earning = await _db.AuthorEarnings
+            .Include(e => e.Author)
+            .FirstOrDefaultAsync(e => e.Id == id && e.AuthorId == userId, ct);
+        if (earning is null) return NotFound();
+        if (earning.StripeTransferId is not null)
+        {
+            return BadRequest(new { error = "Ten zarobek jest już wytransferowany." });
+        }
+        if (string.IsNullOrEmpty(earning.Author?.StripeAccountId))
+        {
+            return BadRequest(new { error = "Brak konta Stripe Connect — najpierw onboard'uj." });
+        }
+        if (earning.AuthorShareGr <= 0)
+        {
+            return BadRequest(new { error = "Kwota 0 zł — nic do transferu." });
+        }
+
+        try
+        {
+            var transfer = await new TransferService().CreateAsync(new TransferCreateOptions
+            {
+                Amount = earning.AuthorShareGr,
+                Currency = "pln",
+                Destination = earning.Author.StripeAccountId,
+                Description = $"Zarobki Kursy.pl za {earning.PeriodStart:yyyy-MM}",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["earning_id"] = earning.Id.ToString(),
+                    ["author_id"] = earning.AuthorId.ToString(),
+                    ["period"] = earning.PeriodStart.ToString("yyyy-MM"),
+                },
+            }, cancellationToken: ct);
+            earning.StripeTransferId = transfer.Id;
+            earning.TransferredAt = DateTime.UtcNow;
+            earning.TransferError = null;
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { earning.StripeTransferId, earning.TransferredAt });
+        }
+        catch (StripeException ex)
+        {
+            earning.TransferError = ex.Message;
+            await _db.SaveChangesAsync(ct);
+            _logger.LogWarning(ex, "Stripe transfer failed for earning {Id}", id);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Admin-only: wymuś przeliczenie earnings dla wskazanego okresu (np. recalc po dorzuceniu kursu).</summary>
+    [HttpPost("earnings/recalc")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Recalc([FromQuery] DateTime periodStart, [FromQuery] DateTime periodEnd, CancellationToken ct)
+    {
+        var summary = await _calc.CalculateForPeriodAsync(periodStart, periodEnd, ct);
+        return Ok(summary);
     }
 }

@@ -647,6 +647,26 @@ export const api = {
         http<{ url: string }>('/author/stripe-connect/onboard', { method: 'POST' }),
       dashboardLink: () =>
         http<{ url: string }>('/author/stripe-connect/dashboard-link', { method: 'POST' }),
+      earnings: () =>
+        http<
+          {
+            id: string;
+            periodStart: string;
+            periodEnd: string;
+            authorShareGr: number;
+            authorSharePln: number;
+            activeStudents: number;
+            totalActive: number;
+            transferred: boolean;
+            transferredAt: string | null;
+            stripeTransferId: string | null;
+          }[]
+        >('/author/stripe-connect/earnings'),
+      transferEarning: (id: string) =>
+        http<{ stripeTransferId: string; transferredAt: string }>(
+          `/author/stripe-connect/earnings/${id}/transfer`,
+          { method: 'POST' },
+        ),
     },
     reorderModules: (courseId: string, moduleIds: string[]) =>
       http<void>('/author/modules/reorder', {
