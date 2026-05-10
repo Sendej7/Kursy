@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+export {}; // marker — plik jest modułem (izolowany scope, brak kolizji z js-worker.ts)
 
 // W workerze `self` jest globalnym DedicatedWorkerGlobalScope — alias dla wygodnego typu.
 const ctx = self as unknown as DedicatedWorkerGlobalScope & typeof globalThis;

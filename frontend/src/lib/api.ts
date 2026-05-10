@@ -105,6 +105,7 @@ export interface LessonDetail {
   draftContentMarkdown: string | null;
   videoUrl: string | null;
   moduleId: string;
+  courseLanguage: CourseLanguage;
   exercise: {
     id: string;
     prompt: string;
