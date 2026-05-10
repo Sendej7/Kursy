@@ -103,6 +103,15 @@ export default function CourseEditor() {
             </button>
           )}
           <Link
+            to={`/courses/${course.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+            title="Otwórz widok studenta w nowej karcie"
+          >
+            Preview jako student
+          </Link>
+          <Link
             to={`/author/courses/${id}/analytics`}
             className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
           >

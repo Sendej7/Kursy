@@ -46,6 +46,7 @@ export interface CourseDetail {
   averageRating: number;
   reviewCount: number;
   isFavorited: boolean;
+  visibility: CourseVisibility;
 }
 
 export interface FavoriteCourse {

@@ -46,6 +46,12 @@ export default function CourseDetail() {
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-10">
+      {course.visibility !== 'Public' && (
+        <div className="mb-4 px-3 py-2 border border-amber-300 bg-amber-50 rounded-md text-sm text-amber-900">
+          🔒 <strong>Preview</strong> — kurs ze statusem <code>{course.visibility}</code>; widzisz
+          go bo jesteś autorem (lub Adminem). Studenci jeszcze go nie widzą.
+        </div>
+      )}
       <div className="mb-6">
         <p className="text-xs text-gray-500 uppercase tracking-wide">{course.language}</p>
         <h1 className="text-3xl font-bold mt-1">{course.title}</h1>
