@@ -40,6 +40,7 @@ public class LessonsController : ControllerBase
         string? DraftContentMarkdown,
         string? VideoUrl,
         Guid ModuleId,
+        EduPlatform.Domain.Enums.CourseLanguage CourseLanguage,
         ExerciseDto? Exercise,
         bool IsCompleted);
 
@@ -72,6 +73,7 @@ public class LessonsController : ControllerBase
             isAuthorOrAdmin ? lesson.DraftContentMarkdown : null,
             lesson.VideoUrl,
             lesson.ModuleId,
+            lesson.Module?.Course?.Language ?? EduPlatform.Domain.Enums.CourseLanguage.Python,
             lesson.Exercise is null
                 ? null
                 : new ExerciseDto(

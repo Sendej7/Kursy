@@ -10,6 +10,7 @@ import LessonNotes from '@/components/LessonNotes';
 import VideoEmbed from '@/components/VideoEmbed';
 import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
+import { runJs, submitJs } from '@/lib/jsRunner';
 import { useAuth } from '@/lib/auth';
 import { joinLesson, notifyCompleted } from '@/lib/lessonHub';
 import { toast } from '@/lib/toast';
@@ -74,11 +75,17 @@ export default function LessonView() {
 
   const allPassed = tests.length > 0 && tests.every((t) => t.passed);
 
+  // Wybór runner po language kursu — Python (Pyodide) lub JS/TS (Web Worker eval).
+  // CSharp/Sql jeszcze nie obsługiwane (TODO: Judge0 jako serverside fallback).
+  const isJs = lesson?.courseLanguage === 'JavaScript' || lesson?.courseLanguage === 'TypeScript';
+  const runFn = isJs ? runJs : runPython;
+  const submitFn = isJs ? submitJs : submitPython;
+
   async function onRun() {
     setRunStatus('running');
     setOutput('Uruchamiam…');
     setTests([]);
-    const res = await runPython(code);
+    const res = await runFn(code);
     setOutput(res.error ? `${res.stdout}\n${res.error}` : res.stdout || '(brak outputu)');
     setLastError(res.error ?? null);
     setRunStatus('idle');
@@ -90,7 +97,7 @@ export default function LessonView() {
     setOutput('Sprawdzam…');
     setTests([]);
 
-    const res = await submitPython(code, lesson.exercise.testsCode);
+    const res = await submitFn(code, lesson.exercise.testsCode);
     setOutput(
       res.error
         ? `${res.stdout}\n${res.error}`
@@ -216,7 +223,12 @@ export default function LessonView() {
       {lesson.exercise && (
         <div className="space-y-4">
           <div className="border rounded-lg overflow-hidden bg-[#1e1e1e]">
-            <CodeEditor value={code} onChange={setCode} language="python" height="280px" />
+            <CodeEditor
+              value={code}
+              onChange={setCode}
+              language={isJs ? 'javascript' : 'python'}
+              height="280px"
+            />
           </div>
 
           <div className="flex gap-2">
