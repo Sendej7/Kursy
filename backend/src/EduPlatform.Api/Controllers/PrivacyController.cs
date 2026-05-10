@@ -113,6 +113,11 @@ public class PrivacyController : ControllerBase
             .Select(n => new { n.Type, n.Title, n.Body, n.Url, n.ReadAt, n.CreatedAt })
             .ToListAsync(ct);
 
+        var lessonNotes = await _db.LessonNotes
+            .Where(n => n.UserId == userId)
+            .Select(n => new { n.LessonId, n.Content, n.UpdatedAt })
+            .ToListAsync(ct);
+
         return new JsonResult(new
         {
             exportedAt = DateTime.UtcNow,
@@ -128,6 +133,7 @@ public class PrivacyController : ControllerBase
             questions,
             answers,
             notifications,
+            lessonNotes,
         })
         {
             ContentType = "application/json",
