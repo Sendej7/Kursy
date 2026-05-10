@@ -47,6 +47,8 @@ export interface CourseDetail {
   reviewCount: number;
   isFavorited: boolean;
   visibility: CourseVisibility;
+  authorId: string;
+  authorDisplayName: string;
 }
 
 export interface FavoriteCourse {
@@ -481,6 +483,27 @@ export const api = {
   listCourseTags: () =>
     http<{ tag: string; count: number }[]>('/courses/tags', { auth: false }),
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
+
+  authorProfile: (id: string) =>
+    http<{
+      id: string;
+      displayName: string;
+      avatarUrl: string | null;
+      coursesCount: number;
+      studentsTotal: number;
+      averageRating: number;
+      reviewCount: number;
+      courses: {
+        id: string;
+        slug: string;
+        title: string;
+        description: string;
+        language: CourseLanguage;
+        priceMonthlyPln: number | null;
+        averageRating: number;
+        reviewCount: number;
+      }[];
+    }>(`/authors/${id}`, { auth: false }),
 
   embed: {
     getLesson: (id: string) =>

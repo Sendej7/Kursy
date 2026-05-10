@@ -51,6 +51,7 @@ const AdminOrganizations = lazy(() => import('./pages/admin/Organizations'));
 const AdminPromoCodes = lazy(() => import('./pages/admin/PromoCodes'));
 const AdminMetrics = lazy(() => import('./pages/admin/Metrics'));
 const EmbedLesson = lazy(() => import('./pages/EmbedLesson'));
+const AuthorProfile = lazy(() => import('./pages/AuthorProfile'));
 
 function PageFallback() {
   return (
@@ -197,6 +198,7 @@ export default function App() {
             <Route path="/auth/github/callback" element={<GitHubCallback />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/questions/:id" element={<QuestionDetail />} />
+            <Route path="/authors/:id" element={<AuthorProfile />} />
             <Route path="/search" element={<SearchResults />} />
             <Route
               path="/my-favorites"

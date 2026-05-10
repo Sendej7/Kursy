@@ -55,6 +55,12 @@ export default function CourseDetail() {
       <div className="mb-6">
         <p className="text-xs text-gray-500 uppercase tracking-wide">{course.language}</p>
         <h1 className="text-3xl font-bold mt-1">{course.title}</h1>
+        <p className="text-xs text-gray-500 mt-1">
+          autor:{' '}
+          <Link to={`/authors/${course.authorId}`} className="underline hover:text-gray-700">
+            {course.authorDisplayName}
+          </Link>
+        </p>
         <p className="text-gray-700 mt-2">{course.description}</p>
         {course.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">

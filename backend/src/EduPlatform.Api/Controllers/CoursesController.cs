@@ -40,7 +40,9 @@ public class CoursesController : ControllerBase
         double AverageRating,
         int ReviewCount,
         bool IsFavorited,
-        CourseVisibility Visibility);
+        CourseVisibility Visibility,
+        Guid AuthorId,
+        string AuthorDisplayName);
     public record ModuleDto(Guid Id, string Title, int Order, IReadOnlyList<LessonSummaryDto> Lessons);
     public record LessonSummaryDto(Guid Id, string Title, int Order, LessonType Type, bool IsCompleted);
 
@@ -104,6 +106,7 @@ public class CoursesController : ControllerBase
     public async Task<ActionResult<CourseDetailDto>> Get(string slug, CancellationToken ct)
     {
         var course = await _db.Courses
+            .Include(c => c.Author)
             .Include(c => c.Modules.OrderBy(m => m.Order))
                 .ThenInclude(m => m.Lessons.OrderBy(l => l.Order))
             .FirstOrDefaultAsync(c => c.Slug == slug, ct);
@@ -159,7 +162,9 @@ public class CoursesController : ControllerBase
             reviewStats?.Avg ?? 0d,
             reviewStats?.Count ?? 0,
             favorited,
-            course.Visibility));
+            course.Visibility,
+            course.AuthorId,
+            course.Author?.DisplayName ?? "(usunięty)"));
     }
 
     public record EnrollByCodeDto(string AccessCode);
