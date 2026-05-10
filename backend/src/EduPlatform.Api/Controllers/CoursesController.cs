@@ -39,7 +39,8 @@ public class CoursesController : ControllerBase
         bool IsEnrolled,
         double AverageRating,
         int ReviewCount,
-        bool IsFavorited);
+        bool IsFavorited,
+        CourseVisibility Visibility);
     public record ModuleDto(Guid Id, string Title, int Order, IReadOnlyList<LessonSummaryDto> Lessons);
     public record LessonSummaryDto(Guid Id, string Title, int Order, LessonType Type, bool IsCompleted);
 
@@ -109,6 +110,15 @@ public class CoursesController : ControllerBase
 
         if (course is null) return NotFound();
 
+        // Gating: kurs Draft / PendingReview / Archived widoczny tylko dla autora i Admina.
+        if (course.Visibility != CourseVisibility.Public)
+        {
+            if (_currentUser.Id is not { } me) return NotFound();
+            var isAuthor = course.AuthorId == me;
+            var isAdmin = User.IsInRole("Admin");
+            if (!isAuthor && !isAdmin) return NotFound();
+        }
+
         HashSet<Guid> completedLessons = new();
         bool enrolled = false;
         bool favorited = false;
@@ -148,7 +158,8 @@ public class CoursesController : ControllerBase
             enrolled,
             reviewStats?.Avg ?? 0d,
             reviewStats?.Count ?? 0,
-            favorited));
+            favorited,
+            course.Visibility));
     }
 
     public record EnrollByCodeDto(string AccessCode);
