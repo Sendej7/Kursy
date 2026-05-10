@@ -6,6 +6,7 @@ import rehypeHighlight from 'rehype-highlight';
 import CodeEditor from '@/components/CodeEditor';
 import AiChat from '@/components/AiChat';
 import LessonQAList from '@/components/LessonQAList';
+import LessonNotes from '@/components/LessonNotes';
 import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
 import { useAuth } from '@/lib/auth';
@@ -282,6 +283,7 @@ export default function LessonView() {
         </div>
       )}
 
+      {isAuthed && <LessonNotes lessonId={lessonId} />}
       <LessonQAList lessonId={lessonId} canAsk={isAuthed} />
     </section>
   );
