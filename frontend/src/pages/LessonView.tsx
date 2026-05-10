@@ -7,6 +7,7 @@ import CodeEditor from '@/components/CodeEditor';
 import AiChat from '@/components/AiChat';
 import LessonQAList from '@/components/LessonQAList';
 import LessonNotes from '@/components/LessonNotes';
+import VideoEmbed from '@/components/VideoEmbed';
 import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
 import { useAuth } from '@/lib/auth';
@@ -184,6 +185,11 @@ export default function LessonView() {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {lesson.type === 'Video' && lesson.videoUrl && (
+        <div className="mb-6">
+          <VideoEmbed url={lesson.videoUrl} />
         </div>
       )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

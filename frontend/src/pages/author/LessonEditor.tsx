@@ -19,6 +19,7 @@ export default function LessonEditor() {
   const [title, setTitle] = useState('');
   const [order, setOrder] = useState(1);
   const [type, setType] = useState<LessonType>('Exercise');
+  const [videoUrl, setVideoUrl] = useState('');
   const [content, setContent] = useState('');
   const [prompt, setPrompt] = useState('');
   const [starterCode, setStarterCode] = useState('');
@@ -31,6 +32,8 @@ export default function LessonEditor() {
     if (!lesson) return;
     setTitle(lesson.title);
     setOrder(lesson.order);
+    setType(lesson.type);
+    setVideoUrl(lesson.videoUrl ?? '');
     // Jeśli lekcja ma draft, pokazujemy DRAFT do edycji (priorytet) — autor edytuje go
     // i może opublikować lub odrzucić; jeśli brak draftu, edytujemy live.
     setContent(lesson.draftContentMarkdown ?? lesson.contentMarkdown);
@@ -52,6 +55,7 @@ export default function LessonEditor() {
         order,
         type,
         contentMarkdown: content,
+        videoUrl: videoUrl.trim() || null,
       }),
     onSuccess: () => {
       toast.success('Live wersja zaktualizowana.');
@@ -143,8 +147,20 @@ export default function LessonEditor() {
               <option>Theory</option>
               <option>Exercise</option>
               <option>Quiz</option>
+              <option>Video</option>
             </select>
           </label>
+          {type === 'Video' && (
+            <label className="block">
+              <span className="text-sm">URL wideo (YouTube / Vimeo)</span>
+              <input
+                className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=… lub https://vimeo.com/…"
+              />
+            </label>
+          )}
           <label className="block">
             <span className="text-sm block mb-1">Treść (markdown)</span>
             <MarkdownEditor value={content} onChange={setContent} rows={14} />

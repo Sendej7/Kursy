@@ -14,6 +14,9 @@ public class Lesson : Entity
     /// </summary>
     public string? DraftContentMarkdown { get; set; }
 
+    /// <summary>URL wideo (YouTube/Vimeo/Mux); używane gdy Type=Video. Null dla pozostałych typów.</summary>
+    public string? VideoUrl { get; set; }
+
     public Guid ModuleId { get; set; }
     public Module? Module { get; set; }
 

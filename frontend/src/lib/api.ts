@@ -4,7 +4,7 @@ const BASE = '/api';
 
 export type CourseLanguage = 'Python' | 'JavaScript' | 'TypeScript' | 'CSharp' | 'Sql';
 export type CourseVisibility = 'Draft' | 'Private' | 'PendingReview' | 'Public' | 'Archived';
-export type LessonType = 'Theory' | 'Exercise' | 'Quiz';
+export type LessonType = 'Theory' | 'Exercise' | 'Quiz' | 'Video';
 
 export interface CourseListItem {
   id: string;
@@ -98,8 +98,10 @@ export interface LessonDetail {
   id: string;
   title: string;
   order: number;
+  type: LessonType;
   contentMarkdown: string;
   draftContentMarkdown: string | null;
+  videoUrl: string | null;
   moduleId: string;
   exercise: {
     id: string;
@@ -638,6 +640,7 @@ export const api = {
         order: number;
         type: LessonType;
         contentMarkdown: string;
+        videoUrl?: string | null;
       },
     ) =>
       http<void>(`/author/lessons/${id}`, {

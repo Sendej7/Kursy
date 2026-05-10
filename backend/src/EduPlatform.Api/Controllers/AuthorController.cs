@@ -29,7 +29,7 @@ public class AuthorController : ControllerBase
     public record CreateCourseDto(string Title, string Description, CourseLanguage Language, List<string>? Tags = null);
     public record UpdateCourseDto(string Title, string Description, CourseLanguage Language, CourseVisibility Visibility, decimal? PriceMonthlyPln, List<string>? Tags = null);
     public record CreateModuleDto(Guid CourseId, string Title, string Description, int Order);
-    public record CreateLessonDto(Guid ModuleId, string Title, int Order, LessonType Type, string ContentMarkdown);
+    public record CreateLessonDto(Guid ModuleId, string Title, int Order, LessonType Type, string ContentMarkdown, string? VideoUrl = null);
     public record UpsertExerciseDto(string Prompt, string StarterCode, string SolutionCode, string TestsCode, List<string> Hints);
     public record GenerateFromTextDto(string SourceText, string TargetLanguage = "Python");
 
@@ -124,6 +124,7 @@ public class AuthorController : ControllerBase
             Order = dto.Order,
             Type = dto.Type,
             ContentMarkdown = dto.ContentMarkdown,
+            VideoUrl = string.IsNullOrWhiteSpace(dto.VideoUrl) ? null : dto.VideoUrl.Trim(),
         };
         _db.Lessons.Add(lesson);
         await _db.SaveChangesAsync(ct);
@@ -142,6 +143,7 @@ public class AuthorController : ControllerBase
         lesson.Title = dto.Title;
         lesson.Order = dto.Order;
         lesson.Type = dto.Type;
+        lesson.VideoUrl = string.IsNullOrWhiteSpace(dto.VideoUrl) ? null : dto.VideoUrl.Trim();
         // Update'ując live, jeśli podany content == aktualny draft, traktujemy jako "publikuję draft".
         if (lesson.DraftContentMarkdown is not null && dto.ContentMarkdown == lesson.DraftContentMarkdown)
         {

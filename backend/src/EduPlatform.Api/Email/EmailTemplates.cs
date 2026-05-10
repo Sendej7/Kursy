@@ -107,6 +107,32 @@ public static class EmailTemplates
         return new EmailMessage(toEmail, toName, "Dziś jeszcze nauka do celu — Kursy.pl", html, text);
     }
 
+    public static EmailMessage StreakSaveReminder(string toEmail, string toName, int currentStreak, string appUrl)
+    {
+        var html = $$"""
+        <!doctype html>
+        <html lang="pl">
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111;">
+          <h1 style="font-size: 20px;">🔥 Nie strać swojego streaka</h1>
+          <p>Cześć {{toName}},</p>
+          <p>Masz aktualny streak <strong>{{currentStreak}} dni</strong> z rzędu — szkoda by go zerwać.
+             Jedna lekcja dziś = streak żyje.</p>
+          <p style="margin: 24px 0;">
+            <a href="{{appUrl}}/my-courses" style="display: inline-block; padding: 10px 16px; background: #d97706; color: #fff; text-decoration: none; border-radius: 6px;">
+              Otwórz lekcję
+            </a>
+          </p>
+          <p style="font-size: 12px; color: #666;">
+            Możesz wyłączyć przypomnienia w <a href="{{appUrl}}/account">Konto → Cel dzienny</a>.
+          </p>
+        </body>
+        </html>
+        """;
+        var text = $"Cześć {toName}, masz streak {currentStreak} dni — wpadnij dziś na 1 lekcję żeby go nie stracić. {appUrl}/my-courses";
+        return new EmailMessage(toEmail, toName, $"🔥 Streak {currentStreak} dni — nie zerwij go", html, text);
+    }
+
     public static EmailMessage VerifyEmail(string toEmail, string toName, string verifyUrl)
     {
         var html = $$"""
