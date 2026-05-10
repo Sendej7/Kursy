@@ -58,4 +58,15 @@ public class InvoicesController : ControllerBase
             inv.Description,
             inv.NetAmountGr / 100m, inv.VatRatePct, inv.VatAmountGr / 100m, inv.GrossAmountGr / 100m, inv.Currency));
     }
+
+    /// <summary>Server-side render PDF. Streamowane jako application/pdf.</summary>
+    [HttpGet("{id:guid}/pdf")]
+    public async Task<IActionResult> GetPdf(Guid id, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var inv = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, ct);
+        if (inv is null) return NotFound();
+        var bytes = EduPlatform.Api.Billing.InvoicePdfRenderer.Render(inv);
+        return File(bytes, "application/pdf", $"FV-{inv.Number.Replace('/', '_')}.pdf");
+    }
 }

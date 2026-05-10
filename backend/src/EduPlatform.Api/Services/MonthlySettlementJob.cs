@@ -50,10 +50,23 @@ public class MonthlySettlementJob : BackgroundService
         var prevMonthStart = thisMonthStart.AddMonths(-1);
 
         using var scope = _services.CreateScope();
-        var calc = scope.ServiceProvider.GetRequiredService<AuthorEarningsCalculator>();
-        var summary = await calc.CalculateForPeriodAsync(prevMonthStart, thisMonthStart, ct);
-        _logger.LogInformation(
-            "Monthly settlement: period {Start:yyyy-MM} → {Authors} autorów, {RevenueGr} gr revenue, {ShareGr} gr authors share",
-            prevMonthStart, summary.AuthorsCount, summary.TotalRevenueGr, summary.TotalAuthorsShareGr);
+        var db = scope.ServiceProvider.GetRequiredService<EduPlatform.Infrastructure.Persistence.AppDbContext>();
+        if (!await PostgresAdvisoryLock.TryAcquireAsync(db, PostgresAdvisoryLock.MonthlySettlementKey, ct))
+        {
+            _logger.LogInformation("MonthlySettlement: lock zajęty przez inną instancję, skip.");
+            return;
+        }
+        try
+        {
+            var calc = scope.ServiceProvider.GetRequiredService<AuthorEarningsCalculator>();
+            var summary = await calc.CalculateForPeriodAsync(prevMonthStart, thisMonthStart, ct);
+            _logger.LogInformation(
+                "Monthly settlement: period {Start:yyyy-MM} → {Authors} autorów, {RevenueGr} gr revenue, {ShareGr} gr authors share",
+                prevMonthStart, summary.AuthorsCount, summary.TotalRevenueGr, summary.TotalAuthorsShareGr);
+        }
+        finally
+        {
+            await PostgresAdvisoryLock.ReleaseAsync(db, PostgresAdvisoryLock.MonthlySettlementKey, ct);
+        }
     }
 }
