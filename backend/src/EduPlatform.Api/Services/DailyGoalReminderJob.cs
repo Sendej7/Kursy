@@ -47,7 +47,24 @@ public class DailyGoalReminderJob : BackgroundService
     {
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var email = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+        if (!await PostgresAdvisoryLock.TryAcquireAsync(db, PostgresAdvisoryLock.StreakReminderKey, ct))
+        {
+            _logger.LogInformation("StreakSaveReminder: lock zajęty przez inną instancję, skip.");
+            return;
+        }
+        try
+        {
+            var email = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+            await DoStreakSaveTickAsync(db, email, ct);
+        }
+        finally
+        {
+            await PostgresAdvisoryLock.ReleaseAsync(db, PostgresAdvisoryLock.StreakReminderKey, ct);
+        }
+    }
+
+    private async Task DoStreakSaveTickAsync(AppDbContext db, IEmailSender email, CancellationToken ct)
+    {
         var appUrl = (_config.GetValue<string>("App:BaseUrl") ?? "http://localhost:5173").TrimEnd('/');
 
         var today = DateTime.UtcNow.Date;
@@ -94,7 +111,24 @@ public class DailyGoalReminderJob : BackgroundService
     {
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var email = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+        if (!await PostgresAdvisoryLock.TryAcquireAsync(db, PostgresAdvisoryLock.DailyGoalReminderKey, ct))
+        {
+            _logger.LogInformation("DailyGoalReminder: lock zajęty przez inną instancję, skip.");
+            return;
+        }
+        try
+        {
+            var email = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+            await DoTickAsync(db, email, ct);
+        }
+        finally
+        {
+            await PostgresAdvisoryLock.ReleaseAsync(db, PostgresAdvisoryLock.DailyGoalReminderKey, ct);
+        }
+    }
+
+    private async Task DoTickAsync(AppDbContext db, IEmailSender email, CancellationToken ct)
+    {
         var appUrl = (_config.GetValue<string>("App:BaseUrl") ?? "http://localhost:5173").TrimEnd('/');
 
         var today = DateTime.UtcNow.Date;

@@ -17,12 +17,28 @@ export default function InvoiceDetail() {
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-10">
-      <div className="flex justify-end mb-3 print:hidden">
+      <div className="flex justify-end gap-2 mb-3 print:hidden">
         <button
-          onClick={() => window.print()}
+          onClick={async () => {
+            const blob = await api.invoices.pdf(id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `FV-${data.number.replace(/\//g, '_')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          }}
           className="px-3 py-1.5 bg-black text-white rounded-md text-sm"
         >
-          Drukuj / zapisz jako PDF
+          Pobierz PDF
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+        >
+          Drukuj (HTML)
         </button>
       </div>
 

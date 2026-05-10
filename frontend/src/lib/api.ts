@@ -840,6 +840,16 @@ export const api = {
           description: string;
         }[]
       >('/invoices/mine'),
+    pdf: async (id: string): Promise<Blob> => {
+      const token = useAuth.getState().token;
+      const res = await fetch(`${BASE}/invoices/${id}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        throw new ApiError(res.status, `${res.status} ${res.statusText}`, null);
+      }
+      return res.blob();
+    },
     get: (id: string) =>
       http<{
         id: string;
