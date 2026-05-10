@@ -26,6 +26,12 @@ export default function AuthorDashboard() {
             Pojedyncza lekcja
           </Link>
           <Link
+            to="/author/payouts"
+            className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+          >
+            Wypłaty
+          </Link>
+          <Link
             to="/author/courses/new"
             className="px-3 py-1.5 bg-black text-white rounded-md text-sm font-medium"
           >

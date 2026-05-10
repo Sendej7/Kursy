@@ -46,6 +46,9 @@ public class User : Entity
     /// <summary>True = wysyłaj wieczorne przypomnienie "wracaj nie strać streaka" gdy active streak ≥ 3 dni.</summary>
     public bool StreakReminderEnabled { get; set; } = true;
     public DateTime? StreakReminderLastSent { get; set; }
+
+    /// <summary>Stripe Connect Express account ID — gdy autor onboard'uje się żeby otrzymywać wypłaty.</summary>
+    public string? StripeAccountId { get; set; }
     /// <summary>Najdłuższa kiedykolwiek osiągnięta seria.</summary>
     public int LongestStreakDays { get; set; }
     /// <summary>Data ostatniego dnia z aktywnością (UTC, bez godziny).</summary>

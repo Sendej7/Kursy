@@ -634,6 +634,20 @@ export const api = {
       }),
     duplicateCourse: (id: string) =>
       http<{ id: string; slug: string }>(`/author/courses/${id}/duplicate`, { method: 'POST' }),
+    stripeConnect: {
+      status: () =>
+        http<{
+          configured: boolean;
+          connected: boolean;
+          payoutsEnabled: boolean;
+          detailsSubmitted: boolean;
+          requirementsDue: string[] | null;
+        }>('/author/stripe-connect/status'),
+      onboard: () =>
+        http<{ url: string }>('/author/stripe-connect/onboard', { method: 'POST' }),
+      dashboardLink: () =>
+        http<{ url: string }>('/author/stripe-connect/dashboard-link', { method: 'POST' }),
+    },
     reorderModules: (courseId: string, moduleIds: string[]) =>
       http<void>('/author/modules/reorder', {
         method: 'PATCH',
