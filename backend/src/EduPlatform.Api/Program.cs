@@ -79,12 +79,14 @@ builder.Services.AddScoped<NotificationService>();
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddHostedService<DailyGoalReminderJob>();
+    builder.Services.AddHostedService<MonthlySettlementJob>();
 }
 builder.Services.AddScoped<AchievementService>();
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
 builder.Services.AddScoped<InvoiceService>();
 builder.Services.AddScoped<StripeService>();
+builder.Services.AddScoped<AuthorEarningsCalculator>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));

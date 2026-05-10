@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<CourseFavorite> CourseFavorites => Set<CourseFavorite>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     public DbSet<LessonNote> LessonNotes => Set<LessonNote>();
+    public DbSet<AuthorEarning> AuthorEarnings => Set<AuthorEarning>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

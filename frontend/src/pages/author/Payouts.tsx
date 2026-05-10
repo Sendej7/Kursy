@@ -10,6 +10,11 @@ export default function AuthorPayouts() {
     queryFn: () => api.author.stripeConnect.status(),
   });
 
+  const earnings = useQuery({
+    queryKey: ['author', 'stripe-connect', 'earnings'],
+    queryFn: () => api.author.stripeConnect.earnings(),
+  });
+
   const onboard = useMutation({
     mutationFn: () => api.author.stripeConnect.onboard(),
     onSuccess: (res) => {
@@ -26,6 +31,21 @@ export default function AuthorPayouts() {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Błąd.'),
   });
+
+  const transfer = useMutation({
+    mutationFn: (id: string) => api.author.stripeConnect.transferEarning(id),
+    onSuccess: () => {
+      toast.success('Transfer wykonany.');
+      qc.invalidateQueries({ queryKey: ['author', 'stripe-connect', 'earnings'] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Błąd.'),
+  });
+
+  const totalPending = (earnings.data ?? [])
+    .filter((e) => !e.transferred)
+    .reduce((sum, e) => sum + e.authorSharePln, 0);
+  const totalAll = (earnings.data ?? [])
+    .reduce((sum, e) => sum + e.authorSharePln, 0);
 
   if (status.isLoading) return <p className="max-w-3xl mx-auto px-4 py-10 text-gray-500">Ładowanie…</p>;
 
@@ -104,6 +124,57 @@ export default function AuthorPayouts() {
           </div>
         </div>
       )}
+
+      <section className="border rounded-lg bg-white p-5 space-y-3">
+        <header className="flex items-baseline justify-between gap-3">
+          <h2 className="font-semibold">Twoje zarobki</h2>
+          {(earnings.data?.length ?? 0) > 0 && (
+            <p className="text-xs text-gray-600">
+              Łącznie: <strong>{totalAll.toFixed(2)} zł</strong>
+              {totalPending > 0 && <> · Do wypłaty: <strong className="text-amber-700">{totalPending.toFixed(2)} zł</strong></>}
+            </p>
+          )}
+        </header>
+
+        {earnings.isLoading && <p className="text-sm text-gray-500">Ładowanie…</p>}
+        {!earnings.isLoading && (earnings.data?.length ?? 0) === 0 && (
+          <p className="text-sm text-gray-500">
+            Brak rozliczonych okresów. Zarobki za dany miesiąc liczone są 1. dnia kolejnego miesiąca.
+          </p>
+        )}
+
+        <ul className="divide-y text-sm">
+          {earnings.data?.map((e) => (
+            <li key={e.id} className="py-2 flex items-center justify-between gap-3">
+              <span className="flex-1 min-w-0">
+                <span className="font-medium">
+                  {new Date(e.periodStart).toLocaleString('pl-PL', { year: 'numeric', month: 'long' })}
+                </span>
+                <span className="block text-xs text-gray-500">
+                  {e.activeStudents} studentów / {e.totalActive} aktywnych Pro
+                </span>
+              </span>
+              <span className="text-right">
+                <span className="font-semibold">{e.authorSharePln.toFixed(2)} zł</span>
+                {e.transferred ? (
+                  <span className="block text-xs text-green-700">
+                    ✓ wypłacone {e.transferredAt && new Date(e.transferredAt).toLocaleDateString('pl-PL')}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => transfer.mutate(e.id)}
+                    disabled={transfer.isPending || !status.data?.payoutsEnabled}
+                    className="text-xs underline text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:no-underline"
+                    title={status.data?.payoutsEnabled ? 'Wykonaj transfer' : 'Najpierw aktywuj konto Stripe'}
+                  >
+                    {transfer.isPending ? 'Transferuję…' : 'Wykonaj transfer'}
+                  </button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <p className="text-xs text-gray-500">
         ← <Link to="/author" className="underline">Wróć do panelu autora</Link>
