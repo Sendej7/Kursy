@@ -798,6 +798,15 @@ export const api = {
       certificatesEarned: number;
     }>('/me/stats'),
 
+  dailyGoal: {
+    get: () => http<{ goal: number; doneToday: number; metToday: boolean }>('/me/daily-goal'),
+    set: (lessons: number) =>
+      http<void>('/me/daily-goal', {
+        method: 'PUT',
+        body: JSON.stringify({ lessons }),
+      }),
+  },
+
   leaderboard: () =>
     http<{ displayName: string; totalXp: number; currentStreakDays: number }[]>('/leaderboard', {
       auth: false,
