@@ -105,8 +105,8 @@ public class MeController : ControllerBase
         return Ok(output);
     }
 
-    public record DailyGoalDto(int Goal, int DoneToday, bool MetToday);
-    public record SetDailyGoalDto(int Lessons);
+    public record DailyGoalDto(int Goal, int DoneToday, bool MetToday, bool ReminderEnabled);
+    public record SetDailyGoalDto(int Lessons, bool? ReminderEnabled = null);
 
     [HttpGet("daily-goal")]
     public async Task<IActionResult> GetDailyGoal(CancellationToken ct)
@@ -114,7 +114,7 @@ public class MeController : ControllerBase
         if (_currentUser.Id is not { } userId) return Unauthorized();
         var user = await _db.Users
             .Where(u => u.Id == userId)
-            .Select(u => new { u.DailyGoalLessons })
+            .Select(u => new { u.DailyGoalLessons, u.DailyGoalReminderEnabled })
             .FirstOrDefaultAsync(ct);
         if (user is null) return Unauthorized();
 
@@ -130,7 +130,8 @@ public class MeController : ControllerBase
         return Ok(new DailyGoalDto(
             user.DailyGoalLessons,
             doneToday,
-            user.DailyGoalLessons > 0 && doneToday >= user.DailyGoalLessons));
+            user.DailyGoalLessons > 0 && doneToday >= user.DailyGoalLessons,
+            user.DailyGoalReminderEnabled));
     }
 
     [HttpPut("daily-goal")]
@@ -144,6 +145,7 @@ public class MeController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null) return Unauthorized();
         user.DailyGoalLessons = dto.Lessons;
+        if (dto.ReminderEnabled is bool en) user.DailyGoalReminderEnabled = en;
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

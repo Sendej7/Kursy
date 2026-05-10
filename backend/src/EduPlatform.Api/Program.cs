@@ -74,6 +74,12 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<CertificateService>();
 builder.Services.AddScoped<GamificationService>();
 builder.Services.AddScoped<NotificationService>();
+
+// Background job — wyłączony w testach, żeby nie próbował wysyłać maili (TestApp env="Testing").
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<DailyGoalReminderJob>();
+}
 builder.Services.AddScoped<AchievementService>();
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));

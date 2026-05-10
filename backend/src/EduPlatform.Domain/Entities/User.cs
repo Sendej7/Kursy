@@ -38,6 +38,10 @@ public class User : Entity
     public int CurrentStreakDays { get; set; }
     /// <summary>Cel dzienny — ile lekcji student chce przejść każdego dnia. 0 = wyłączony.</summary>
     public int DailyGoalLessons { get; set; }
+    /// <summary>True = wysyłaj email-przypomnienia o niedokończonym dziennym celu. Domyślnie ON dla nowych celów.</summary>
+    public bool DailyGoalReminderEnabled { get; set; } = true;
+    /// <summary>Data ostatnio wysłanej notyfikacji (anti-double-send).</summary>
+    public DateTime? DailyGoalReminderLastSent { get; set; }
     /// <summary>Najdłuższa kiedykolwiek osiągnięta seria.</summary>
     public int LongestStreakDays { get; set; }
     /// <summary>Data ostatniego dnia z aktywnością (UTC, bez godziny).</summary>

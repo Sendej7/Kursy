@@ -12,19 +12,25 @@ export default function DailyGoalSetting() {
     queryFn: () => api.dailyGoal.get(),
   });
   const [goal, setGoal] = useState(0);
+  const [reminderEnabled, setReminderEnabled] = useState(true);
 
   useEffect(() => {
-    if (data.data) setGoal(data.data.goal);
+    if (data.data) {
+      setGoal(data.data.goal);
+      setReminderEnabled(data.data.reminderEnabled);
+    }
   }, [data.data]);
 
   const save = useMutation({
-    mutationFn: () => api.dailyGoal.set(goal),
+    mutationFn: () => api.dailyGoal.set(goal, reminderEnabled),
     onSuccess: () => {
       toast.success(goal === 0 ? 'Cel dzienny wyłączony.' : `Cel: ${goal} lekcji dziennie.`);
       qc.invalidateQueries({ queryKey: ['daily-goal'] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Błąd.'),
   });
+
+  const dirty = data.data && (goal !== data.data.goal || reminderEnabled !== data.data.reminderEnabled);
 
   if (data.isLoading) return <p className="text-sm text-gray-500">Ładowanie…</p>;
 
@@ -57,9 +63,20 @@ export default function DailyGoalSetting() {
         ))}
       </div>
 
+      {goal > 0 && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={reminderEnabled}
+            onChange={(e) => setReminderEnabled(e.target.checked)}
+          />
+          <span>Wysyłaj email-przypomnienie wieczorem, jeśli nie spełniłem celu</span>
+        </label>
+      )}
+
       <button
         onClick={() => save.mutate()}
-        disabled={save.isPending || goal === data.data?.goal}
+        disabled={save.isPending || !dirty}
         className="px-3 py-1.5 bg-black text-white rounded-md text-sm disabled:opacity-50"
       >
         {save.isPending ? 'Zapisuję…' : 'Zapisz cel'}

@@ -805,11 +805,14 @@ export const api = {
     }>('/me/stats'),
 
   dailyGoal: {
-    get: () => http<{ goal: number; doneToday: number; metToday: boolean }>('/me/daily-goal'),
-    set: (lessons: number) =>
+    get: () =>
+      http<{ goal: number; doneToday: number; metToday: boolean; reminderEnabled: boolean }>(
+        '/me/daily-goal',
+      ),
+    set: (lessons: number, reminderEnabled?: boolean) =>
       http<void>('/me/daily-goal', {
         method: 'PUT',
-        body: JSON.stringify({ lessons }),
+        body: JSON.stringify({ lessons, reminderEnabled }),
       }),
   },
 
