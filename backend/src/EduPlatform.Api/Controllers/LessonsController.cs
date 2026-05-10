@@ -173,4 +173,55 @@ public class LessonsController : ControllerBase
             streakBumped = gamification.StreakBumped,
         });
     }
+
+    public record NoteDto(string Content);
+
+    [Authorize]
+    [HttpGet("{id:guid}/note")]
+    public async Task<IActionResult> GetNote(Guid id, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var note = await _db.LessonNotes
+            .Where(n => n.UserId == userId && n.LessonId == id)
+            .Select(n => new NoteDto(n.Content))
+            .FirstOrDefaultAsync(ct);
+        return Ok(note ?? new NoteDto(string.Empty));
+    }
+
+    [Authorize]
+    [HttpPut("{id:guid}/note")]
+    public async Task<IActionResult> UpsertNote(Guid id, [FromBody] NoteDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var lessonExists = await _db.Lessons.AnyAsync(l => l.Id == id, ct);
+        if (!lessonExists) return NotFound();
+
+        var content = dto.Content?.Trim() ?? string.Empty;
+        if (content.Length > 20_000) content = content[..20_000];
+
+        var existing = await _db.LessonNotes
+            .FirstOrDefaultAsync(n => n.UserId == userId && n.LessonId == id, ct);
+
+        if (string.IsNullOrEmpty(content))
+        {
+            // Pusta notatka = usuwamy. Nie trzymamy "" w bazie.
+            if (existing is not null) _db.LessonNotes.Remove(existing);
+        }
+        else if (existing is null)
+        {
+            _db.LessonNotes.Add(new Domain.Entities.LessonNote
+            {
+                UserId = userId,
+                LessonId = id,
+                Content = content,
+            });
+        }
+        else
+        {
+            existing.Content = content;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }

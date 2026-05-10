@@ -532,6 +532,12 @@ export const api = {
 
   // lessons
   getLesson: (id: string) => http<LessonDetail>(`/lessons/${id}`),
+  getNote: (lessonId: string) => http<{ content: string }>(`/lessons/${lessonId}/note`),
+  saveNote: (lessonId: string, content: string) =>
+    http<void>(`/lessons/${lessonId}/note`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
   completeLesson: (id: string, timeSpentSeconds: number) =>
     http<{
       certificateIssued: boolean;
