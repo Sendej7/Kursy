@@ -36,6 +36,7 @@ public class LessonsController : ControllerBase
         string Title,
         int Order,
         string ContentMarkdown,
+        string? DraftContentMarkdown,
         Guid ModuleId,
         ExerciseDto? Exercise,
         bool IsCompleted);
@@ -47,14 +48,17 @@ public class LessonsController : ControllerBase
     {
         var lesson = await _db.Lessons
             .Include(l => l.Exercise)
+            .Include(l => l.Module).ThenInclude(m => m!.Course)
             .FirstOrDefaultAsync(l => l.Id == id, ct);
         if (lesson is null) return NotFound();
 
         bool completed = false;
+        var isAuthorOrAdmin = false;
         if (_currentUser.Id is { } userId)
         {
             completed = await _db.LessonProgresses
                 .AnyAsync(p => p.UserId == userId && p.LessonId == id && p.Completed, ct);
+            isAuthorOrAdmin = lesson.Module?.Course?.AuthorId == userId || User.IsInRole("Admin");
         }
 
         return Ok(new LessonDetailDto(
@@ -62,6 +66,7 @@ public class LessonsController : ControllerBase
             lesson.Title,
             lesson.Order,
             lesson.ContentMarkdown,
+            isAuthorOrAdmin ? lesson.DraftContentMarkdown : null,
             lesson.ModuleId,
             lesson.Exercise is null
                 ? null

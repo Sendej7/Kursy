@@ -99,6 +99,7 @@ export interface LessonDetail {
   title: string;
   order: number;
   contentMarkdown: string;
+  draftContentMarkdown: string | null;
   moduleId: string;
   exercise: {
     id: string;
@@ -643,6 +644,15 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(payload),
       }),
+    saveLessonDraft: (id: string, contentMarkdown: string) =>
+      http<void>(`/author/lessons/${id}/draft`, {
+        method: 'PUT',
+        body: JSON.stringify({ contentMarkdown }),
+      }),
+    publishLessonDraft: (id: string) =>
+      http<void>(`/author/lessons/${id}/publish-draft`, { method: 'POST' }),
+    discardLessonDraft: (id: string) =>
+      http<void>(`/author/lessons/${id}/discard-draft`, { method: 'POST' }),
     upsertExercise: (
       lessonId: string,
       payload: {
