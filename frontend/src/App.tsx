@@ -52,6 +52,7 @@ const AdminPromoCodes = lazy(() => import('./pages/admin/PromoCodes'));
 const AdminMetrics = lazy(() => import('./pages/admin/Metrics'));
 const EmbedLesson = lazy(() => import('./pages/EmbedLesson'));
 const AuthorProfile = lazy(() => import('./pages/AuthorProfile'));
+const AuthorPayouts = lazy(() => import('./pages/author/Payouts'));
 
 function PageFallback() {
   return (
@@ -199,6 +200,14 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/questions/:id" element={<QuestionDetail />} />
             <Route path="/authors/:id" element={<AuthorProfile />} />
+            <Route
+              path="/author/payouts"
+              element={
+                <ProtectedRoute roles={['Author', 'Admin']}>
+                  <AuthorPayouts />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/search" element={<SearchResults />} />
             <Route
               path="/my-favorites"
