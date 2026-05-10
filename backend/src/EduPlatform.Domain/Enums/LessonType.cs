@@ -4,5 +4,6 @@ public enum LessonType
 {
     Theory = 0,
     Exercise = 1,
-    Quiz = 2
+    Quiz = 2,
+    Video = 3,
 }

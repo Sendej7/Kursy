@@ -24,17 +24,16 @@ public class DailyGoalReminderJob : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var hour = _config.GetValue<int?>("Reminders:DailyGoalHourUtc") ?? 18;
+        var goalHour = _config.GetValue<int?>("Reminders:DailyGoalHourUtc") ?? 18;
+        var streakHour = _config.GetValue<int?>("Reminders:StreakSaveHourUtc") ?? 21;
 
-        // Loop co 60 min, sprawdza czy aktualna godzina UTC == hour. Niezależne od server timezone.
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                if (DateTime.UtcNow.Hour == hour)
-                {
-                    await TickAsync(stoppingToken);
-                }
+                var hour = DateTime.UtcNow.Hour;
+                if (hour == goalHour) await TickAsync(stoppingToken);
+                if (hour == streakHour) await StreakSaveTickAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -42,6 +41,53 @@ public class DailyGoalReminderJob : BackgroundService
             }
             await Task.Delay(TimeSpan.FromMinutes(60), stoppingToken);
         }
+    }
+
+    private async Task StreakSaveTickAsync(CancellationToken ct)
+    {
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var email = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+        var appUrl = (_config.GetValue<string>("App:BaseUrl") ?? "http://localhost:5173").TrimEnd('/');
+
+        var today = DateTime.UtcNow.Date;
+        var tomorrow = today.AddDays(1);
+
+        // Streak save: aktualny streak ≥ 3 + opt-in + nie wysłaliśmy dziś.
+        var candidates = await db.Users
+            .Where(u => !u.IsDeleted
+                && u.CurrentStreakDays >= 3
+                && u.StreakReminderEnabled
+                && (u.StreakReminderLastSent == null || u.StreakReminderLastSent < today))
+            .Select(u => new { u.Id, u.Email, u.DisplayName, u.CurrentStreakDays })
+            .ToListAsync(ct);
+
+        var sent = 0;
+        foreach (var u in candidates)
+        {
+            var doneToday = await db.LessonProgresses
+                .CountAsync(p => p.UserId == u.Id
+                    && p.Completed
+                    && p.CompletedAt != null
+                    && p.CompletedAt >= today
+                    && p.CompletedAt < tomorrow, ct);
+            if (doneToday > 0) continue; // streak już bezpieczny
+
+            try
+            {
+                await email.SendAsync(
+                    EmailTemplates.StreakSaveReminder(u.Email, u.DisplayName, u.CurrentStreakDays, appUrl), ct);
+                await db.Users.Where(x => x.Id == u.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.StreakReminderLastSent, DateTime.UtcNow), ct);
+                sent++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Streak reminder send failed for {UserId}", u.Id);
+            }
+        }
+
+        _logger.LogInformation("Streak save reminders: {Sent}/{Total} wysłanych", sent, candidates.Count);
     }
 
     private async Task TickAsync(CancellationToken ct)

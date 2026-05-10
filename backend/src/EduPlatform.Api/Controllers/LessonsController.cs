@@ -35,8 +35,10 @@ public class LessonsController : ControllerBase
         Guid Id,
         string Title,
         int Order,
+        EduPlatform.Domain.Enums.LessonType Type,
         string ContentMarkdown,
         string? DraftContentMarkdown,
+        string? VideoUrl,
         Guid ModuleId,
         ExerciseDto? Exercise,
         bool IsCompleted);
@@ -65,8 +67,10 @@ public class LessonsController : ControllerBase
             lesson.Id,
             lesson.Title,
             lesson.Order,
+            lesson.Type,
             lesson.ContentMarkdown,
             isAuthorOrAdmin ? lesson.DraftContentMarkdown : null,
+            lesson.VideoUrl,
             lesson.ModuleId,
             lesson.Exercise is null
                 ? null

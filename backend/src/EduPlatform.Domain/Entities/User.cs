@@ -42,6 +42,10 @@ public class User : Entity
     public bool DailyGoalReminderEnabled { get; set; } = true;
     /// <summary>Data ostatnio wysłanej notyfikacji (anti-double-send).</summary>
     public DateTime? DailyGoalReminderLastSent { get; set; }
+
+    /// <summary>True = wysyłaj wieczorne przypomnienie "wracaj nie strać streaka" gdy active streak ≥ 3 dni.</summary>
+    public bool StreakReminderEnabled { get; set; } = true;
+    public DateTime? StreakReminderLastSent { get; set; }
     /// <summary>Najdłuższa kiedykolwiek osiągnięta seria.</summary>
     public int LongestStreakDays { get; set; }
     /// <summary>Data ostatniego dnia z aktywnością (UTC, bez godziny).</summary>
