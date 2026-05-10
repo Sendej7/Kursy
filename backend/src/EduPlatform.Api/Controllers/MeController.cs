@@ -104,4 +104,47 @@ public class MeController : ControllerBase
 
         return Ok(output);
     }
+
+    public record DailyGoalDto(int Goal, int DoneToday, bool MetToday);
+    public record SetDailyGoalDto(int Lessons);
+
+    [HttpGet("daily-goal")]
+    public async Task<IActionResult> GetDailyGoal(CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var user = await _db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => new { u.DailyGoalLessons })
+            .FirstOrDefaultAsync(ct);
+        if (user is null) return Unauthorized();
+
+        var today = DateTime.UtcNow.Date;
+        var tomorrow = today.AddDays(1);
+        var doneToday = await _db.LessonProgresses
+            .CountAsync(p => p.UserId == userId
+                && p.Completed
+                && p.CompletedAt != null
+                && p.CompletedAt >= today
+                && p.CompletedAt < tomorrow, ct);
+
+        return Ok(new DailyGoalDto(
+            user.DailyGoalLessons,
+            doneToday,
+            user.DailyGoalLessons > 0 && doneToday >= user.DailyGoalLessons));
+    }
+
+    [HttpPut("daily-goal")]
+    public async Task<IActionResult> SetDailyGoal([FromBody] SetDailyGoalDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        if (dto.Lessons is < 0 or > 20)
+        {
+            return BadRequest(new { error = "Cel musi być 0..20." });
+        }
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return Unauthorized();
+        user.DailyGoalLessons = dto.Lessons;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }

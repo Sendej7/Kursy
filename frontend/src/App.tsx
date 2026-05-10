@@ -10,6 +10,7 @@ import EmailVerifyBanner from './components/EmailVerifyBanner';
 import NotificationsBell from './components/NotificationsBell';
 import SearchBar from './components/SearchBar';
 import CookieBanner from './components/CookieBanner';
+import DailyGoalBadge from './components/DailyGoalBadge';
 import { api } from './lib/api';
 import { useAuth } from './lib/auth';
 
@@ -115,6 +116,7 @@ function Header() {
           )}
           {auth.isAuthenticated() ? (
             <>
+              <DailyGoalBadge />
               <StreakPill />
               <NotificationsBell />
               <Link to="/account" className="text-gray-500 hover:underline">

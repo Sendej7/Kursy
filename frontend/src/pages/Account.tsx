@@ -9,6 +9,7 @@ import TwoFactorSetup from '@/components/TwoFactorSetup';
 import PrivacySection from '@/components/PrivacySection';
 import SessionsList from '@/components/SessionsList';
 import AchievementsCard from '@/components/AchievementsCard';
+import DailyGoalSetting from '@/components/DailyGoalSetting';
 
 export default function Account() {
   const auth = useAuth();
@@ -102,6 +103,11 @@ export default function Account() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="border rounded-lg bg-white p-5">
+        <h2 className="font-semibold mb-2">Cel dzienny</h2>
+        <DailyGoalSetting />
       </div>
 
       <div id="achievements" className="border rounded-lg bg-white p-5">
