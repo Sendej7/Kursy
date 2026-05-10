@@ -142,7 +142,62 @@ public class AuthorController : ControllerBase
         lesson.Title = dto.Title;
         lesson.Order = dto.Order;
         lesson.Type = dto.Type;
+        // Update'ując live, jeśli podany content == aktualny draft, traktujemy jako "publikuję draft".
+        if (lesson.DraftContentMarkdown is not null && dto.ContentMarkdown == lesson.DraftContentMarkdown)
+        {
+            lesson.DraftContentMarkdown = null;
+        }
         lesson.ContentMarkdown = dto.ContentMarkdown;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    public record SaveDraftDto(string ContentMarkdown);
+
+    /// <summary>Zapisuje wersję roboczą treści; live pozostaje bez zmian.</summary>
+    [HttpPut("lessons/{id:guid}/draft")]
+    public async Task<IActionResult> SaveDraft(Guid id, [FromBody] SaveDraftDto dto, CancellationToken ct)
+    {
+        var lesson = await _db.Lessons
+            .Include(l => l.Module).ThenInclude(m => m!.Course)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null || lesson.Module?.Course?.AuthorId != _currentUser.Id) return NotFound();
+
+        var content = dto.ContentMarkdown ?? string.Empty;
+        // Pusty draft = no-draft (taki sam co live = no-op draft);
+        // wyrównuje stan w UI.
+        lesson.DraftContentMarkdown = string.IsNullOrEmpty(content) || content == lesson.ContentMarkdown
+            ? null
+            : content;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>Kopiuje DraftContentMarkdown → ContentMarkdown (publikuje atomowo); zeruje draft.</summary>
+    [HttpPost("lessons/{id:guid}/publish-draft")]
+    public async Task<IActionResult> PublishDraft(Guid id, CancellationToken ct)
+    {
+        var lesson = await _db.Lessons
+            .Include(l => l.Module).ThenInclude(m => m!.Course)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null || lesson.Module?.Course?.AuthorId != _currentUser.Id) return NotFound();
+        if (lesson.DraftContentMarkdown is null) return BadRequest(new { error = "Brak draftu do opublikowania." });
+
+        lesson.ContentMarkdown = lesson.DraftContentMarkdown;
+        lesson.DraftContentMarkdown = null;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    [HttpPost("lessons/{id:guid}/discard-draft")]
+    public async Task<IActionResult> DiscardDraft(Guid id, CancellationToken ct)
+    {
+        var lesson = await _db.Lessons
+            .Include(l => l.Module).ThenInclude(m => m!.Course)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null || lesson.Module?.Course?.AuthorId != _currentUser.Id) return NotFound();
+
+        lesson.DraftContentMarkdown = null;
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
