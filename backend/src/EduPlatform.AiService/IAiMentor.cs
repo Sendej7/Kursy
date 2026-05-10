@@ -4,7 +4,10 @@ public record MentorRequest(
     string Question,
     string LessonContext,
     string? StudentCode = null,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    /// <summary>Opcjonalny dodatek do system promptu — autor kursu może spersonalizować
+    /// styl/zachowanie mentora (np. „odpowiadaj zwięźle", „używaj analogii kuchennych").</summary>
+    string? CourseInstructions = null);
 
 public record MentorResponse(string Answer, int TokensIn, int TokensOut);
 

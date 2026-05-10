@@ -38,8 +38,18 @@ public class AiController : ControllerBase
     {
         if (_currentUser.Id is not { } userId) return Unauthorized();
 
+        // Pobierz course-level AI override (jeśli lekcja jest w jakimś kursie).
+        string? courseInstructions = null;
+        if (dto.LessonId is { } lid)
+        {
+            courseInstructions = await _db.Lessons
+                .Where(l => l.Id == lid)
+                .Select(l => l.Module!.Course!.AiMentorPromptOverride)
+                .FirstOrDefaultAsync(ct);
+        }
+
         var response = await _mentor.AskAsync(
-            new MentorRequest(dto.Question, dto.LessonContext, dto.StudentCode, dto.ErrorMessage),
+            new MentorRequest(dto.Question, dto.LessonContext, dto.StudentCode, dto.ErrorMessage, courseInstructions),
             ct);
 
         if (dto.LessonId is { } lessonId)

@@ -97,11 +97,23 @@ public class ClaudeAiMentor : IAiMentor
         }
         contextBlocks.Add(new { type = "text", text = $"Pytanie studenta: {request.Question}" });
 
+        // Dodatek autora kursu (opcjonalny) — appendowany do default system promptu.
+        // Przycięty do 2000 znaków żeby nie dolatywał do limitu tokenów.
+        var systemPrompt = MentorSystemPrompt;
+        if (!string.IsNullOrWhiteSpace(request.CourseInstructions))
+        {
+            var trimmed = request.CourseInstructions.Trim();
+            if (trimmed.Length > 2000) trimmed = trimmed[..2000];
+            systemPrompt = MentorSystemPrompt
+                + "\n\n## Dodatkowe instrukcje od autora tego kursu:\n"
+                + trimmed;
+        }
+
         var body = new
         {
             model = _options.Model,
             max_tokens = _options.MaxTokens,
-            system = MentorSystemPrompt,
+            system = systemPrompt,
             messages = new[]
             {
                 new { role = "user", content = contextBlocks },
