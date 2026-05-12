@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import RecommendedCourses from '@/components/RecommendedCourses';
 
 export default function Home() {
   return (
@@ -53,6 +54,10 @@ export default function Home() {
           Aby przetestować od strony autora, zaloguj się na <code className="bg-gray-100 px-1 rounded">demo@kursy.pl</code> /{' '}
           <code className="bg-gray-100 px-1 rounded">demo1234</code>. Albo załóż własne konto i zaznacz „autor".
         </p>
+      </section>
+
+      <section className="max-w-5xl mx-auto px-4 pb-12">
+        <RecommendedCourses />
       </section>
     </>
   );

@@ -193,6 +193,94 @@ public class CoursesController : ControllerBase
         return Ok(favs);
     }
 
+    /// <summary>
+    /// Polecone kursy. Algorytm:
+    ///  1. Gdy user ma enrollments — collaborative filtering: znajdź "studenci tych kursów też brali".
+    ///     Wagujemy po liczbie współwystąpień. Excludujemy kursy user'a już zapisane.
+    ///  2. Gdy user nie ma jeszcze enrollments (lub anon) — top-rated publiczne darmowe.
+    /// Zwracamy max 6.
+    /// </summary>
+    [HttpGet("recommendations")]
+    public async Task<IActionResult> Recommendations(CancellationToken ct)
+    {
+        const int Take = 6;
+        var userId = _currentUser.Id;
+
+        List<Guid>? myCourseIds = null;
+        if (userId is { } me)
+        {
+            myCourseIds = await _db.CourseEnrollments
+                .Where(e => e.UserId == me)
+                .Select(e => e.CourseId)
+                .ToListAsync(ct);
+        }
+
+        if (myCourseIds is null || myCourseIds.Count == 0)
+        {
+            // Cold-start: top-rated publiczne darmowe.
+            var fallback = await _db.Courses
+                .Where(c => c.Visibility == CourseVisibility.Public
+                    && (c.PriceMonthlyPln == null || c.PriceMonthlyPln == 0))
+                .OrderByDescending(c => _db.CourseReviews.Count(r => r.CourseId == c.Id))
+                .ThenByDescending(c => c.CreatedAt)
+                .Take(Take)
+                .Select(c => new CourseListItem(
+                    c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln, c.Tags,
+                    _db.CourseReviews.Where(r => r.CourseId == c.Id).Average(r => (double?)r.Rating) ?? 0d,
+                    _db.CourseReviews.Count(r => r.CourseId == c.Id)))
+                .ToListAsync(ct);
+            return Ok(fallback);
+        }
+
+        // CF: znajdź innych studentów którzy zapisali się na MOJE kursy.
+        var peerIds = await _db.CourseEnrollments
+            .Where(e => myCourseIds.Contains(e.CourseId) && e.UserId != userId)
+            .Select(e => e.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (peerIds.Count == 0)
+        {
+            // Brak peer-ów — fallback do top-rated.
+            var none = await _db.Courses
+                .Where(c => c.Visibility == CourseVisibility.Public && !myCourseIds.Contains(c.Id))
+                .OrderByDescending(c => _db.CourseReviews.Count(r => r.CourseId == c.Id))
+                .Take(Take)
+                .Select(c => new CourseListItem(
+                    c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln, c.Tags,
+                    _db.CourseReviews.Where(r => r.CourseId == c.Id).Average(r => (double?)r.Rating) ?? 0d,
+                    _db.CourseReviews.Count(r => r.CourseId == c.Id)))
+                .ToListAsync(ct);
+            return Ok(none);
+        }
+
+        // Kandydaci: kursy peers'ów, których ja nie mam. Sortujemy po częstości występowania.
+        var candidateGroups = await _db.CourseEnrollments
+            .Where(e => peerIds.Contains(e.UserId)
+                && !myCourseIds.Contains(e.CourseId)
+                && e.Course!.Visibility == CourseVisibility.Public)
+            .GroupBy(e => e.CourseId)
+            .Select(g => new { CourseId = g.Key, Score = g.Count() })
+            .OrderByDescending(x => x.Score)
+            .Take(Take)
+            .ToListAsync(ct);
+
+        var ids = candidateGroups.Select(x => x.CourseId).ToList();
+        var courses = await _db.Courses
+            .Where(c => ids.Contains(c.Id))
+            .Select(c => new CourseListItem(
+                c.Id, c.Title, c.Slug, c.Description, c.Language, c.PriceMonthlyPln, c.Tags,
+                _db.CourseReviews.Where(r => r.CourseId == c.Id).Average(r => (double?)r.Rating) ?? 0d,
+                _db.CourseReviews.Count(r => r.CourseId == c.Id)))
+            .ToListAsync(ct);
+
+        // Zachowaj order z candidateGroups.
+        var ordered = courses
+            .OrderBy(c => candidateGroups.FindIndex(g => g.CourseId == c.Id))
+            .ToList();
+        return Ok(ordered);
+    }
+
     [Authorize]
     [HttpPost("{id:guid}/favorite")]
     public async Task<IActionResult> ToggleFavorite(Guid id, CancellationToken ct)
