@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { CardSkeleton } from '@/components/Skeleton';
+import RecommendedCourses from '@/components/RecommendedCourses';
 
 export default function MyCourses() {
   const { data, isLoading, error } = useQuery({
@@ -64,6 +65,8 @@ export default function MyCourses() {
           </p>
         )}
       </div>
+
+      <RecommendedCourses />
     </section>
   );
 }

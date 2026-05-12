@@ -485,6 +485,7 @@ export const api = {
   listCourseTags: () =>
     http<{ tag: string; count: number }[]>('/courses/tags', { auth: false }),
   getCourse: (slug: string) => http<CourseDetail>(`/courses/${slug}`),
+  recommendations: () => http<CourseListItem[]>('/courses/recommendations'),
 
   authorProfile: (id: string) =>
     http<{
