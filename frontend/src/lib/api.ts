@@ -579,6 +579,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ timeSpentSeconds }),
     }),
+  getQuiz: (lessonId: string) =>
+    http<{
+      intro: string | null;
+      passingPercentage: number;
+      questions: { id: string; prompt: string; options: string[] }[];
+    }>(`/lessons/${lessonId}/quiz`, { auth: false }),
+  submitQuiz: (lessonId: string, answers: { questionId: string; selectedIndex: number }[]) =>
+    http<{
+      score: number;
+      total: number;
+      percentage: number;
+      passed: boolean;
+      perQuestion: { id: string; correct: boolean; correctIndex: number; explanation: string | null }[];
+    }>(`/lessons/${lessonId}/quiz/submit`, {
+      method: 'POST',
+      body: JSON.stringify({ answers }),
+    }),
 
   // submissions
   recordSubmission: (payload: {

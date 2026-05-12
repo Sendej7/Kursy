@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import CodeEditor from '@/components/CodeEditor';
 import MarkdownEditor from '@/components/MarkdownEditor';
+import QuizAuthor from '@/components/QuizAuthor';
 import { api, type LessonType } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
@@ -161,10 +162,17 @@ export default function LessonEditor() {
               />
             </label>
           )}
-          <label className="block">
-            <span className="text-sm block mb-1">Treść (markdown)</span>
-            <MarkdownEditor value={content} onChange={setContent} rows={14} />
-          </label>
+          {type === 'Quiz' ? (
+            <div>
+              <span className="text-sm block mb-1">Pytania (quiz)</span>
+              <QuizAuthor value={content} onChange={setContent} />
+            </div>
+          ) : (
+            <label className="block">
+              <span className="text-sm block mb-1">Treść (markdown)</span>
+              <MarkdownEditor value={content} onChange={setContent} rows={14} />
+            </label>
+          )}
           <div className={'border rounded-md p-2 ' + (editingDraft ? 'bg-amber-50 border-amber-300' : 'bg-gray-50')}>
             <p className="text-xs font-semibold mb-2">
               {editingDraft

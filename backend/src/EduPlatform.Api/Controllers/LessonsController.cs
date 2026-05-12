@@ -1,5 +1,7 @@
+using System.Text.Json;
 using EduPlatform.Api.Services;
 using EduPlatform.Domain.Entities;
+using EduPlatform.Domain.Enums;
 using EduPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -183,6 +185,124 @@ public class LessonsController : ControllerBase
             totalXp = gamification.TotalXp,
             streakBumped = gamification.StreakBumped,
         });
+    }
+
+    public record QuizQuestionDto(string Id, string Prompt, IReadOnlyList<string> Options);
+    public record QuizDto(string? Intro, int PassingPercentage, IReadOnlyList<QuizQuestionDto> Questions);
+    public record QuizAnswerDto(string QuestionId, int SelectedIndex);
+    public record QuizSubmitDto(IReadOnlyList<QuizAnswerDto> Answers);
+    public record QuizQuestionResultDto(string Id, bool Correct, int CorrectIndex, string? Explanation);
+    public record QuizSubmitResultDto(
+        int Score,
+        int Total,
+        int Percentage,
+        bool Passed,
+        IReadOnlyList<QuizQuestionResultDto> PerQuestion);
+
+    private sealed record StoredQuizQuestion(string Id, string Prompt, List<string> Options, int CorrectIndex, string? Explanation);
+    private sealed record StoredQuiz(string? Intro, int PassingPercentage, List<StoredQuizQuestion> Questions);
+
+    private static readonly JsonSerializerOptions QuizJsonOptions = new(JsonSerializerDefaults.Web);
+
+    [HttpGet("{id:guid}/quiz")]
+    public async Task<ActionResult<QuizDto>> GetQuiz(Guid id, CancellationToken ct)
+    {
+        var lesson = await _db.Lessons.FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null) return NotFound();
+        if (lesson.Type != LessonType.Quiz) return BadRequest(new { error = "Lesson is not a quiz." });
+
+        var stored = ParseStoredQuiz(lesson.ContentMarkdown);
+        if (stored is null) return Ok(new QuizDto(null, 70, Array.Empty<QuizQuestionDto>()));
+
+        return Ok(new QuizDto(
+            stored.Intro,
+            stored.PassingPercentage,
+            stored.Questions
+                .Select(q => new QuizQuestionDto(q.Id, q.Prompt, q.Options))
+                .ToList()));
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/quiz/submit")]
+    public async Task<ActionResult<QuizSubmitResultDto>> SubmitQuiz(Guid id, [FromBody] QuizSubmitDto dto, CancellationToken ct)
+    {
+        if (_currentUser.Id is not { } userId) return Unauthorized();
+        var lesson = await _db.Lessons.FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (lesson is null) return NotFound();
+        if (lesson.Type != LessonType.Quiz) return BadRequest(new { error = "Lesson is not a quiz." });
+
+        var stored = ParseStoredQuiz(lesson.ContentMarkdown);
+        if (stored is null || stored.Questions.Count == 0)
+            return BadRequest(new { error = "Quiz has no questions." });
+
+        var byId = stored.Questions.ToDictionary(q => q.Id);
+        var perQuestion = new List<QuizQuestionResultDto>(stored.Questions.Count);
+        int correctCount = 0;
+        foreach (var q in stored.Questions)
+        {
+            var answer = dto.Answers.FirstOrDefault(a => a.QuestionId == q.Id);
+            bool correct = answer is not null && answer.SelectedIndex == q.CorrectIndex;
+            if (correct) correctCount++;
+            perQuestion.Add(new QuizQuestionResultDto(q.Id, correct, q.CorrectIndex, q.Explanation));
+        }
+
+        int total = stored.Questions.Count;
+        int percentage = total == 0 ? 0 : (int)Math.Round(correctCount * 100.0 / total);
+        bool passed = percentage >= stored.PassingPercentage;
+
+        if (passed)
+        {
+            var existing = await _db.LessonProgresses
+                .FirstOrDefaultAsync(p => p.UserId == userId && p.LessonId == id, ct);
+            var firstTimeCompletion = existing is null || !existing.Completed;
+            if (existing is null)
+            {
+                _db.LessonProgresses.Add(new LessonProgress
+                {
+                    UserId = userId,
+                    LessonId = id,
+                    Completed = true,
+                    CompletedAt = DateTime.UtcNow,
+                });
+            }
+            else if (!existing.Completed)
+            {
+                existing.Completed = true;
+                existing.CompletedAt ??= DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync(ct);
+
+            if (firstTimeCompletion)
+            {
+                await _gamification.RecordLessonCompletionAsync(userId, true, ct);
+                var lessonForCourse = await _db.Lessons
+                    .Where(l => l.Id == id)
+                    .Select(l => new { l.Module!.CourseId })
+                    .FirstOrDefaultAsync(ct);
+                if (lessonForCourse is not null)
+                {
+                    await _certificates.IssueIfEligibleAsync(userId, lessonForCourse.CourseId, ct);
+                }
+                await _achievements.CheckAndAwardAsync(userId, ct);
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
+        return Ok(new QuizSubmitResultDto(correctCount, total, percentage, passed, perQuestion));
+    }
+
+    private static StoredQuiz? ParseStoredQuiz(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<StoredQuiz>(content, QuizJsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public record NoteDto(string Content);

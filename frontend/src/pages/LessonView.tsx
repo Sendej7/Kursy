@@ -8,6 +8,7 @@ import AiChat from '@/components/AiChat';
 import LessonQAList from '@/components/LessonQAList';
 import LessonNotes from '@/components/LessonNotes';
 import VideoEmbed from '@/components/VideoEmbed';
+import LessonQuiz from '@/components/LessonQuiz';
 import { api } from '@/lib/api';
 import { runPython, submitPython } from '@/lib/pyodide';
 import { runJs, submitJs } from '@/lib/jsRunner';
@@ -199,9 +200,16 @@ export default function LessonView() {
           <VideoEmbed url={lesson.videoUrl} />
         </div>
       )}
+      {lesson.type === 'Quiz' ? (
+        <div className="mb-6">
+          <LessonQuiz lessonId={lessonId} isCompleted={!!lesson.isCompleted} />
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="prose prose-sm max-w-none">
-        <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
+        {lesson.type !== 'Quiz' && (
+          <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
+        )}
         {lesson.exercise && (
           <>
             <h3>Zadanie</h3>
