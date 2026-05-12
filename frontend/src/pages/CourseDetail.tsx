@@ -4,6 +4,7 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import CourseReviews from '@/components/CourseReviews';
+import Seo from '@/components/Seo';
 
 export default function CourseDetail() {
   const { slug = '' } = useParams();
@@ -46,6 +47,12 @@ export default function CourseDetail() {
 
   return (
     <section className="max-w-3xl mx-auto px-4 py-10">
+      <Seo
+        title={course.title}
+        description={course.description}
+        path={`/courses/${course.slug}`}
+        type="article"
+      />
       {course.visibility !== 'Public' && (
         <div className="mb-4 px-3 py-2 border border-amber-300 bg-amber-50 rounded-md text-sm text-amber-900">
           🔒 <strong>Preview</strong> — kurs ze statusem <code>{course.visibility}</code>; widzisz

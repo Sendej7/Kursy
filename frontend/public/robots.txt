@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /author/
+Disallow: /admin/
+Disallow: /account
+Disallow: /my-courses
+Disallow: /my-certificates
+Disallow: /my-favorites
+Disallow: /my-ai-history
+Disallow: /invoices/
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /redeem
+Disallow: /auth/
+
+Sitemap: https://kursy.pl/sitemap.xml

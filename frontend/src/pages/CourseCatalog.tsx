@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CourseLanguage } from '@/lib/api';
 import { CardSkeleton } from '@/components/Skeleton';
+import Seo from '@/components/Seo';
 
 const LANGUAGES: (CourseLanguage | 'all')[] = ['all', 'Python', 'JavaScript', 'TypeScript', 'CSharp', 'Sql'];
 
@@ -25,6 +26,10 @@ export default function CourseCatalog() {
 
   return (
     <section className="max-w-5xl mx-auto px-4 py-10">
+      <Seo
+        title="Katalog kursów"
+        description="Przeglądaj publiczne kursy programowania na Kursy.pl — Python, JavaScript, TypeScript."
+      />
       <h1 className="text-2xl font-bold mb-6">Katalog kursów</h1>
 
       <div className="flex flex-col sm:flex-row gap-2 mb-4">

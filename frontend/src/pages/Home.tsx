@@ -1,9 +1,14 @@
 import { Link } from 'react-router-dom';
 import RecommendedCourses from '@/components/RecommendedCourses';
+import Seo from '@/components/Seo';
 
 export default function Home() {
   return (
     <>
+      <Seo
+        title="Kursy.pl — interaktywna nauka kodowania po polsku"
+        description="Python, JavaScript w przeglądarce. AI mentor odpowiada po polsku. Darmowe kursy + Pro subskrypcja."
+      />
       <section className="max-w-4xl mx-auto px-4 pt-20 pb-12 text-center">
         <span className="inline-block text-xs uppercase tracking-widest text-gray-500 mb-3">
           Po polsku · z AI mentorem
