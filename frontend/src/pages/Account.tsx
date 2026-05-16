@@ -1,6 +1,25 @@
 import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import {
+  Sparkles,
+  Flame,
+  BookOpen,
+  Award,
+  CheckCircle2,
+  CreditCard,
+  Settings,
+  Shield,
+  Smartphone,
+  FileText,
+  Lock,
+  Receipt,
+  Target,
+  Trophy,
+  Heart,
+  Bot,
+  GraduationCap,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
@@ -10,6 +29,7 @@ import PrivacySection from '@/components/PrivacySection';
 import SessionsList from '@/components/SessionsList';
 import AchievementsCard from '@/components/AchievementsCard';
 import DailyGoalSetting from '@/components/DailyGoalSetting';
+import Seo from '@/components/Seo';
 
 export default function Account() {
   const auth = useAuth();
@@ -27,7 +47,7 @@ export default function Account() {
 
   useEffect(() => {
     if (params.get('status') === 'success') {
-      toast.success('Subskrypcja aktywowana — sprawdź status poniżej.');
+      toast.success('Subskrypcja aktywowana');
     }
   }, [params]);
 
@@ -36,126 +56,106 @@ export default function Account() {
       const res = await api.billing.portal(window.location.origin + '/account');
       window.location.href = res.url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Portal Stripe niedostępny.');
+      toast.error(err instanceof Error ? err.message : 'Portal niedostępny');
     }
   }
 
   return (
-    <section className="max-w-3xl mx-auto px-4 py-10 space-y-8">
-      <header>
-        <h1 className="text-2xl font-bold">Konto</h1>
-        <p className="text-sm text-gray-600 mt-1">{auth.user?.email}</p>
+    <section className="container-page py-10 lg:py-16 space-y-6">
+      <Seo title="Moje konto" />
+
+      {/* Header */}
+      <header className="card p-6 bg-gradient-to-br from-brand-600 to-brand-800 text-white border-0">
+        <div className="flex items-center gap-4">
+          <span className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold">
+            {(auth.user?.displayName ?? '?').slice(0, 1).toUpperCase()}
+          </span>
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{auth.user?.displayName}</h1>
+            <p className="text-brand-100 text-sm">{auth.user?.email}</p>
+          </div>
+        </div>
       </header>
 
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="XP" value={stats.data?.totalXp ?? 0} />
-        <Stat label="Streak" value={stats.data?.currentStreakDays ?? 0} suffix="dni" />
-        <Stat label="Lekcje" value={stats.data?.lessonsCompleted ?? 0} />
-        <Stat label="Certyfikaty" value={stats.data?.certificatesEarned ?? 0} />
+        <Stat icon={Sparkles} label="XP" value={stats.data?.totalXp ?? 0} color="brand" />
+        <Stat icon={Flame} label="Seria dni" value={stats.data?.currentStreakDays ?? 0} suffix="d" color="amber" />
+        <Stat icon={BookOpen} label="Lekcje" value={stats.data?.lessonsCompleted ?? 0} color="emerald" />
+        <Stat icon={Award} label="Certyfikaty" value={stats.data?.certificatesEarned ?? 0} color="purple" />
       </div>
 
-      <div className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold">Subskrypcja</h2>
-
+      {/* Subscription */}
+      <SectionCard icon={CreditCard} title="Subskrypcja">
         {billing.data?.configured === false && (
-          <p className="text-sm text-gray-500 mt-2">
-            Płatności nie są jeszcze skonfigurowane. Skontaktuj się z administratorem.
+          <p className="text-sm text-zinc-500">
+            Płatności nie są skonfigurowane.
           </p>
         )}
-
         {billing.data?.configured && billing.data.isActive && (
-          <div className="mt-3 text-sm">
-            <p className="text-green-700">✓ Plan Pro aktywny</p>
+          <div className="space-y-2">
+            <p className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" />
+              Plan Pro aktywny
+            </p>
             {billing.data.currentPeriodEnd && (
-              <p className="text-gray-600">
-                Następna płatność:{' '}
-                {new Date(billing.data.currentPeriodEnd).toLocaleDateString('pl-PL')}
+              <p className="text-sm text-zinc-500">
+                Następna płatność: {new Date(billing.data.currentPeriodEnd).toLocaleDateString('pl-PL')}
               </p>
             )}
             {billing.data.cancelAtPeriodEnd && (
-              <p className="text-amber-700 mt-1">⚠️ Anulowano — wygasa po obecnym okresie</p>
+              <p className="text-sm text-amber-600">⚠️ Anulowano — wygasa po obecnym okresie</p>
             )}
-            <button
-              onClick={openPortal}
-              className="mt-4 px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
-            >
-              Zarządzaj subskrypcją (Stripe)
+            <button onClick={openPortal} className="btn-secondary mt-3">
+              <Settings className="w-4 h-4" />
+              Zarządzaj w Stripe
             </button>
           </div>
         )}
-
         {billing.data?.configured && !billing.data.isActive && (
-          <div className="mt-3">
-            <p className="text-sm text-gray-700">Brak aktywnej subskrypcji.</p>
-            <div className="flex gap-2 mt-3">
-              <Link
-                to="/pricing"
-                className="px-3 py-1.5 bg-black text-white rounded-md text-sm"
-              >
-                Zobacz cennik
-              </Link>
-              <Link
-                to="/redeem"
-                className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
-              >
-                Mam kod uczelni / firmy
-              </Link>
+          <div>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-3">Brak aktywnej subskrypcji.</p>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/pricing" className="btn-brand text-sm">Zobacz cennik</Link>
+              <Link to="/redeem" className="btn-secondary text-sm">Mam kod uczelni / firmy</Link>
             </div>
           </div>
         )}
+      </SectionCard>
+
+      {/* Quick links */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <QuickLink to="/my-courses" icon={GraduationCap} label="Moje kursy" />
+        <QuickLink to="/my-favorites" icon={Heart} label="Ulubione" />
+        <QuickLink to="/my-ai-history" icon={Bot} label="Rozmowy AI" />
+        <QuickLink to="/my-certificates" icon={Award} label="Certyfikaty" />
       </div>
 
-      <div className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold mb-2">Cel dzienny</h2>
+      <SectionCard icon={Target} title="Cel dzienny">
         <DailyGoalSetting />
-      </div>
+      </SectionCard>
 
-      <div id="achievements" className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold mb-2">Odznaki</h2>
+      <SectionCard icon={Trophy} title="Odznaki" id="achievements">
         <AchievementsCard />
-      </div>
+      </SectionCard>
 
-      <div className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold mb-2">Bezpieczeństwo (2FA)</h2>
+      <SectionCard icon={Shield} title="Bezpieczeństwo (2FA)">
         <TwoFactorSetup />
-      </div>
+      </SectionCard>
 
-      <div className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold mb-2">Zalogowane urządzenia</h2>
+      <SectionCard icon={Smartphone} title="Zalogowane urządzenia">
         <SessionsList />
-      </div>
+      </SectionCard>
 
-      <div className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold mb-2">Dane do faktury</h2>
+      <SectionCard icon={FileText} title="Dane do faktury">
         <BillingProfileForm />
-      </div>
+      </SectionCard>
 
       <Invoices />
 
-      <div className="border rounded-lg bg-white p-5">
-        <h2 className="font-semibold mb-2">Dane osobowe (RODO)</h2>
+      <SectionCard icon={Lock} title="Dane osobowe (RODO)">
         <PrivacySection />
-      </div>
-
-      <div className="text-sm text-gray-600">
-        <p>
-          <Link to="/my-courses" className="underline">
-            Moje kursy
-          </Link>
-          {' · '}
-          <Link to="/my-favorites" className="underline">
-            Ulubione
-          </Link>
-          {' · '}
-          <Link to="/my-ai-history" className="underline">
-            Rozmowy z AI
-          </Link>
-          {' · '}
-          <Link to="/my-certificates" className="underline">
-            Moje certyfikaty
-          </Link>
-        </p>
-      </div>
+      </SectionCard>
     </section>
   );
 }
@@ -169,40 +169,76 @@ function Invoices() {
   if (!data || data.length === 0) return null;
 
   return (
-    <div className="border rounded-lg bg-white p-5">
-      <h2 className="font-semibold mb-2">Faktury</h2>
-      <ul className="divide-y">
+    <SectionCard icon={Receipt} title="Faktury">
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800 -my-2">
         {data.map((i) => (
-          <li key={i.id} className="py-2 flex items-center justify-between">
-            <span className="text-sm">
-              <code className="bg-gray-100 px-1 rounded">{i.number}</code>
-              <span className="text-gray-500 ml-2">
+          <li key={i.id} className="py-3 flex items-center justify-between">
+            <div>
+              <code className="bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded font-mono text-xs">{i.number}</code>
+              <span className="text-xs text-zinc-500 ml-2">
                 {new Date(i.issuedAt).toLocaleDateString('pl-PL')}
               </span>
-            </span>
-            <span className="text-sm flex items-center gap-3">
-              <span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="font-medium">
                 {i.grossAmount.toLocaleString('pl-PL', { minimumFractionDigits: 2 })} {i.currency}
               </span>
-              <Link to={`/invoices/${i.id}`} className="text-xs underline">
+              <Link to={`/invoices/${i.id}`} className="text-brand-600 text-xs hover:underline">
                 Pobierz
               </Link>
-            </span>
+            </div>
           </li>
         ))}
       </ul>
+    </SectionCard>
+  );
+}
+
+function SectionCard({
+  icon: Icon, title, id, children,
+}: { icon: typeof Sparkles; title: string; id?: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="card p-5">
+      <h2 className="font-semibold tracking-tight mb-4 flex items-center gap-2">
+        <Icon className="w-4 h-4 text-brand-600" />
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+const STAT_COLORS: Record<string, string> = {
+  brand: 'text-brand-600 bg-brand-50 dark:bg-brand-900/30',
+  amber: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30',
+  emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30',
+  purple: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30',
+};
+
+function Stat({
+  icon: Icon, label, value, suffix, color,
+}: { icon: typeof Sparkles; label: string; value: number; suffix?: string; color: string }) {
+  return (
+    <div className="card p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-zinc-500 font-medium">{label}</span>
+        <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${STAT_COLORS[color]}`}>
+          <Icon className="w-3.5 h-3.5" />
+        </span>
+      </div>
+      <p className="text-2xl font-bold tracking-tight">
+        {value.toLocaleString('pl-PL')}
+        {suffix && <span className="text-sm font-normal text-zinc-500 ml-1">{suffix}</span>}
+      </p>
     </div>
   );
 }
 
-function Stat({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
+function QuickLink({ to, icon: Icon, label }: { to: string; icon: typeof Sparkles; label: string }) {
   return (
-    <div className="border rounded-lg p-3 bg-white">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-xl font-bold mt-0.5">
-        {value.toLocaleString('pl-PL')}
-        {suffix && <span className="text-sm font-normal text-gray-500 ml-1">{suffix}</span>}
-      </p>
-    </div>
+    <Link to={to} className="card-hover p-4 flex flex-col items-center text-center group">
+      <Icon className="w-5 h-5 text-brand-600 mb-1.5 group-hover:scale-110 transition-transform" />
+      <span className="text-xs font-medium">{label}</span>
+    </Link>
   );
 }

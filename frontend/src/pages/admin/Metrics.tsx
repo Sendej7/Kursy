@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { TrendingUp, RefreshCw, Activity } from 'lucide-react';
 import { api } from '@/lib/api';
+import Seo from '@/components/Seo';
 
 export default function AdminMetrics() {
   const m = useQuery({
@@ -8,17 +10,38 @@ export default function AdminMetrics() {
     refetchInterval: 60_000,
   });
 
-  if (m.isLoading) return <p className="max-w-5xl mx-auto px-4 py-10 text-gray-500">Ładowanie…</p>;
-  if (m.error || !m.data)
-    return <p className="max-w-5xl mx-auto px-4 py-10 text-red-600">Nie udało się pobrać metryk.</p>;
+  if (m.isLoading) {
+    return (
+      <div className="container-page py-10 space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-32 bg-zinc-200 dark:bg-zinc-800 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+  if (m.error || !m.data) {
+    return (
+      <div className="container-narrow py-20 text-center">
+        <p className="text-rose-600">Nie udało się pobrać metryk.</p>
+      </div>
+    );
+  }
 
   const { users, subscriptions, content, engagement } = m.data;
 
   return (
-    <section className="max-w-5xl mx-auto px-4 py-10 space-y-6">
+    <section className="container-page py-10 lg:py-16 space-y-8">
+      <Seo title="Metryki — admin" />
+
       <header>
-        <h1 className="text-2xl font-bold">Metryki platformy</h1>
-        <p className="text-xs text-gray-500 mt-1">Aktualizowane co 60s.</p>
+        <div className="flex items-center gap-3 mb-2">
+          <Activity className="w-6 h-6 text-brand-600" />
+          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Metryki platformy</h1>
+        </div>
+        <p className="text-zinc-500 flex items-center gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" />
+          Auto-refresh co 60s
+        </p>
       </header>
 
       <Group title="Użytkownicy">
@@ -28,7 +51,7 @@ export default function AdminMetrics() {
         <Stat label="Konta usunięte" value={users.deleted} subtle />
       </Group>
 
-      <Group title="Subskrypcje (Stripe)">
+      <Group title="Subskrypcje (Stripe)" icon={TrendingUp}>
         <Stat label="Aktywne" value={subscriptions.activeCount} highlight />
         <Stat
           label="MRR"
@@ -64,10 +87,13 @@ export default function AdminMetrics() {
   );
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({ title, icon: Icon, children }: { title: string; icon?: typeof TrendingUp; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700 mb-2">{title}</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-1.5">
+        {Icon && <Icon className="w-3.5 h-3.5" />}
+        {title}
+      </h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{children}</div>
     </section>
   );
@@ -87,15 +113,16 @@ function Stat({
   subtle?: boolean;
 }) {
   return (
-    <div
-      className={
-        'border rounded-lg p-3 ' +
-        (highlight ? 'bg-amber-50 border-amber-200' : subtle ? 'bg-gray-50' : 'bg-white')
-      }
-    >
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-2xl font-bold mt-1">{typeof value === 'number' ? value.toLocaleString('pl-PL') : value}</p>
-      {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+    <div className={`card p-4 ${
+      highlight ? 'ring-2 ring-brand-300 dark:ring-brand-700' : subtle ? 'opacity-70' : ''
+    }`}>
+      <p className="text-xs text-zinc-500 font-medium">{label}</p>
+      <p className={`text-2xl font-bold tracking-tight mt-1 ${
+        highlight ? 'bg-gradient-to-r from-brand-600 to-brand-400 bg-clip-text text-transparent' : ''
+      }`}>
+        {typeof value === 'number' ? value.toLocaleString('pl-PL') : value}
+      </p>
+      {hint && <p className="text-[10px] text-zinc-400 mt-1">{hint}</p>}
     </div>
   );
 }

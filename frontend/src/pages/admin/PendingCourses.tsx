@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, XCircle, Clock, BookOpen } from 'lucide-react';
 import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
+import Seo from '@/components/Seo';
 
 export default function PendingCourses() {
   const qc = useQueryClient();
@@ -10,44 +13,81 @@ export default function PendingCourses() {
 
   const approve = useMutation({
     mutationFn: (id: string) => api.admin.approveCourse(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'pending'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'pending'] });
+      toast.success('Kurs zatwierdzony — widoczny publicznie');
+    },
   });
   const reject = useMutation({
     mutationFn: (id: string) => api.admin.rejectCourse(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'pending'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'pending'] });
+      toast.success('Kurs odrzucony — wrócił do draftu');
+    },
   });
 
   return (
-    <section className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-bold mb-6">Kursy oczekujące na recenzję</h1>
-      {isLoading && <p className="text-gray-500">Ładowanie…</p>}
-      <ul className="space-y-3">
+    <section className="container-page py-10 lg:py-16">
+      <Seo title="Kursy do recenzji — admin" />
+
+      <div className="mb-6 flex items-center gap-3">
+        <span className="badge-amber">
+          <Clock className="w-3 h-3" />
+          Do recenzji
+        </span>
+        <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Kursy oczekujące</h1>
+      </div>
+
+      {isLoading && (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-24 bg-zinc-200 dark:bg-zinc-800 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3">
         {data?.map((c) => (
-          <li key={c.id} className="border rounded-lg bg-white p-4 flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold">{c.title}</h2>
-              <p className="text-xs text-gray-500">
-                {c.authorName} · {c.authorEmail} · {c.modules} modułów · {c.lessons} lekcji
+          <article key={c.id} className="card p-5 flex items-center gap-4">
+            <span className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <BookOpen className="w-5 h-5" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-semibold tracking-tight truncate">{c.title}</h2>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                {c.authorName} · {c.authorEmail}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {c.modules} {c.modules === 1 ? 'moduł' : 'modułów'} · {c.lessons} {c.lessons === 1 ? 'lekcja' : 'lekcji'}
               </p>
             </div>
             <div className="flex gap-2">
               <button
-                className="px-3 py-1 bg-black text-white rounded-md text-sm"
+                className="btn-brand bg-emerald-600 hover:bg-emerald-700 text-sm"
                 onClick={() => approve.mutate(c.id)}
+                disabled={approve.isPending}
               >
+                <CheckCircle2 className="w-4 h-4" />
                 Zatwierdź
               </button>
               <button
-                className="px-3 py-1 border rounded-md text-sm"
+                className="btn-secondary text-sm"
                 onClick={() => reject.mutate(c.id)}
+                disabled={reject.isPending}
               >
+                <XCircle className="w-4 h-4" />
                 Odrzuć
               </button>
             </div>
-          </li>
+          </article>
         ))}
-        {data && data.length === 0 && <p className="text-gray-500">Pusto. Wszystko zrecenzowane.</p>}
-      </ul>
+        {data && data.length === 0 && (
+          <div className="card p-12 text-center">
+            <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
+            <p className="text-zinc-500">Pusto — wszystko zrecenzowane. 🎉</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
