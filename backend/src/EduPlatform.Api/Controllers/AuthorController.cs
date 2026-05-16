@@ -220,12 +220,30 @@ public class AuthorController : ControllerBase
             .FirstOrDefaultAsync(l => l.Id == id, ct);
         if (lesson is null || lesson.Module?.Course?.AuthorId != _currentUser.Id) return NotFound();
 
-        lesson.Exercise ??= new Exercise { LessonId = lesson.Id };
-        lesson.Exercise.Prompt = dto.Prompt;
-        lesson.Exercise.StarterCode = dto.StarterCode;
-        lesson.Exercise.SolutionCode = dto.SolutionCode;
-        lesson.Exercise.TestsCode = dto.TestsCode;
-        lesson.Exercise.Hints = dto.Hints;
+        if (lesson.Exercise is null)
+        {
+            // Explicit Add — bez tego EF Change Tracker traktuje nowy Exercise jako Modified
+            // i SaveChanges rzuca DbUpdateConcurrencyException (0 rows updated).
+            var ex = new Exercise
+            {
+                LessonId = lesson.Id,
+                Prompt = dto.Prompt,
+                StarterCode = dto.StarterCode,
+                SolutionCode = dto.SolutionCode,
+                TestsCode = dto.TestsCode,
+                Hints = dto.Hints,
+            };
+            _db.Exercises.Add(ex);
+            lesson.Exercise = ex;
+        }
+        else
+        {
+            lesson.Exercise.Prompt = dto.Prompt;
+            lesson.Exercise.StarterCode = dto.StarterCode;
+            lesson.Exercise.SolutionCode = dto.SolutionCode;
+            lesson.Exercise.TestsCode = dto.TestsCode;
+            lesson.Exercise.Hints = dto.Hints;
+        }
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
