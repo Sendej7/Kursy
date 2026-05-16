@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Heart, Star, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
+import Seo from '@/components/Seo';
 
 export default function MyFavorites() {
   const list = useQuery({
@@ -9,42 +11,70 @@ export default function MyFavorites() {
   });
 
   return (
-    <section className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Moje ulubione kursy</h1>
+    <section className="container-page py-10 lg:py-16">
+      <Seo title="Moje ulubione" />
 
-      {list.isLoading && <p className="text-gray-500">Ładowanie…</p>}
-      {!list.isLoading && (list.data?.length ?? 0) === 0 && (
-        <p className="text-gray-500">
-          Brak ulubionych. Wejdź na{' '}
-          <Link to="/courses" className="underline">
-            katalog
-          </Link>{' '}
-          i kliknij 🤍 obok kursu, żeby zapisać go na później.
+      <div className="mb-8">
+        <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Ulubione kursy</h1>
+        <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+          Kursy, do których chcesz wrócić.
         </p>
+      </div>
+
+      {list.isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-48 bg-zinc-200 dark:bg-zinc-800 rounded-2xl animate-pulse" />
+          ))}
+        </div>
       )}
 
-      <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {!list.isLoading && (list.data?.length ?? 0) === 0 && (
+        <div className="card p-12 text-center">
+          <Heart className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
+          <p className="text-zinc-500 mb-2">Brak ulubionych.</p>
+          <p className="text-sm text-zinc-400 mb-4">
+            Wejdź na katalog i kliknij ❤️ obok kursu by zapisać na później.
+          </p>
+          <Link to="/courses" className="btn-brand inline-flex">
+            Przeglądaj katalog
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {list.data?.map((c) => (
-          <li key={c.courseId}>
-            <Link
-              to={`/courses/${c.slug}`}
-              className="block border rounded-lg p-4 bg-white hover:shadow-md transition"
-            >
-              <p className="text-xs uppercase tracking-wide text-gray-500">{c.language}</p>
-              <h2 className="font-semibold text-lg mt-1">{c.title}</h2>
+          <Link
+            key={c.courseId}
+            to={`/courses/${c.slug}`}
+            className="card-hover p-6 flex flex-col group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="badge-neutral">{c.language}</span>
               {c.reviewCount > 0 && (
-                <p className="text-xs text-amber-600 mt-1">
-                  ★ {c.averageRating.toFixed(1)} <span className="text-gray-500">({c.reviewCount})</span>
-                </p>
+                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  {c.averageRating.toFixed(1)}
+                </span>
               )}
-              <p className="text-sm text-gray-600 mt-1 line-clamp-3">{c.description}</p>
-              <p className="text-xs text-gray-500 mt-3">
-                {c.priceMonthlyPln ? `${c.priceMonthlyPln} zł/mies (Pro)` : 'darmowe'}
-              </p>
-            </Link>
-          </li>
+            </div>
+            <h2 className="font-semibold text-lg tracking-tight group-hover:text-brand-600 transition-colors line-clamp-2">
+              {c.title}
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-3 flex-1 leading-relaxed">
+              {c.description}
+            </p>
+            <p className="mt-4 text-sm font-medium">
+              {c.priceMonthlyPln ? (
+                <span className="text-brand-600">{c.priceMonthlyPln} zł / mies</span>
+              ) : (
+                <span className="text-emerald-600">darmowe</span>
+              )}
+            </p>
+          </Link>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }
