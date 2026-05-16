@@ -93,11 +93,13 @@ else
   ok ".env already exists (skipping)"
 fi
 
-log "6/7  Docker compose override (port 80 + nie wystawiamy postgres na host)"
+log "6/7  Docker compose override (frontend na :80; reszta tylko w internal network)"
 cat > docker-compose.override.yml <<'EOF'
-# Override dla VPS deploymentu: frontend na :80, postgres NIE wystawiony na host
-# (zwykle 5432 jest zajęty przez systemowy postgres). Kontenery gadają po
-# wewnętrznym network'u, więc backend i tak widzi postgresa po nazwie usługi.
+# Override dla VPS deploymentu: frontend na :80, postgres + mailhog bez
+# wystawiania na host (Contabo ma już własnego postgresa na 5432 i czasem coś
+# na 8025). Backend gada z postgresem po wewnętrznym network'u kontenerów.
+# Backend zostaje na 5080 (definicja w bazowym docker-compose.yml).
+# Żeby zobaczyć Mailhog UI: ssh -L 8025:kursy-mailhog:8025 root@<IP>
 services:
   frontend:
     ports:
@@ -105,8 +107,7 @@ services:
   postgres:
     ports: !reset []
   mailhog:
-    ports:
-      - "127.0.0.1:8025:8025"
+    ports: !reset []
 EOF
 ok "override.yml written"
 
