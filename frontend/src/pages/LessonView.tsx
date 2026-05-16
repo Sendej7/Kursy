@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
+import MarkdownLesson from '@/components/MarkdownLesson';
 import {
   ArrowLeft,
   ArrowRight,
@@ -231,11 +230,11 @@ export default function LessonView() {
           <article className="card p-6 prose prose-zinc dark:prose-invert max-w-none
                               prose-headings:font-semibold prose-headings:tracking-tight
                               prose-a:text-brand-600 prose-a:no-underline hover:prose-a:underline
-                              prose-code:bg-zinc-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono
+                              prose-code:bg-zinc-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-brand-700 prose-code:font-medium
                               prose-code:before:content-none prose-code:after:content-none
-                              prose-pre:bg-zinc-950 prose-pre:rounded-xl prose-pre:text-zinc-100
-                              dark:prose-code:bg-zinc-800">
-            <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
+                              prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0
+                              dark:prose-code:bg-zinc-800 dark:prose-code:text-brand-300">
+            <MarkdownLesson content={lesson.contentMarkdown} />
             {lesson.exercise && (
               <>
                 <h3 className="!mt-6 flex items-center gap-2">
