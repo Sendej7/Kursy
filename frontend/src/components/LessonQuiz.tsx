@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { notifyCompleted } from '@/lib/lessonHub';
 import { toast } from '@/lib/toast';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 export default function LessonQuiz({ lessonId, isCompleted }: Props) {
   const isAuthed = useAuth((s) => s.isAuthenticated());
+  const displayName = useAuth((s) => s.user?.displayName ?? 'Anonim');
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [result, setResult] = useState<Awaited<ReturnType<typeof api.submitQuiz>> | null>(null);
@@ -32,6 +34,11 @@ export default function LessonQuiz({ lessonId, isCompleted }: Props) {
       if (res.passed) {
         toast.success(`Zaliczone! ${res.percentage}%`);
         qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
+        qc.invalidateQueries({ queryKey: ['me', 'courses'] });
+        qc.invalidateQueries({ queryKey: ['me', 'certificates'] });
+        qc.invalidateQueries({ queryKey: ['me', 'stats'] });
+        qc.invalidateQueries({ queryKey: ['leaderboard'] });
+        notifyCompleted(lessonId, displayName);
       } else {
         toast.error(`Wynik ${res.percentage}% — wymagane ${quiz?.passingPercentage}%. Spróbuj ponownie.`);
       }
