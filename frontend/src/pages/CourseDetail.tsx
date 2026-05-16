@@ -152,7 +152,12 @@ export default function CourseDetail() {
                       {l.order}. {l.title}
                     </span>
                   </Link>
-                  <span className="text-xs text-gray-400">{l.type}</span>
+                  <span className="text-xs text-gray-400" title={l.type}>
+                    {l.type === 'Quiz' && '❓ quiz'}
+                    {l.type === 'Video' && '▶ wideo'}
+                    {l.type === 'Exercise' && '💻 zadanie'}
+                    {l.type === 'Theory' && '📖 teoria'}
+                  </span>
                 </li>
               ))}
             </ul>

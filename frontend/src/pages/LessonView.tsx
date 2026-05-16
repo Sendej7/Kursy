@@ -205,11 +205,10 @@ export default function LessonView() {
           <LessonQuiz lessonId={lessonId} isCompleted={!!lesson.isCompleted} />
         </div>
       ) : null}
+      {lesson.type !== 'Quiz' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="prose prose-sm max-w-none">
-        {lesson.type !== 'Quiz' && (
-          <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
-        )}
+        <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{lesson.contentMarkdown}</ReactMarkdown>
         {lesson.exercise && (
           <>
             <h3>Zadanie</h3>
@@ -287,6 +286,7 @@ export default function LessonView() {
         </div>
       )}
       </div>
+      )}
 
       {nav && (
         <div className="flex justify-between border-t pt-3">
