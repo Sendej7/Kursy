@@ -4,7 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import App from './App';
+import { bootstrapTheme } from './lib/theme';
 import './index.css';
+
+bootstrapTheme();
 
 const queryClient = new QueryClient();
 

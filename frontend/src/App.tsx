@@ -1,18 +1,13 @@
 import { lazy, Suspense } from 'react';
-import { Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
-import StreakPill from './components/StreakPill';
 import Toaster from './components/Toaster';
 import EmailVerifyBanner from './components/EmailVerifyBanner';
-import NotificationsBell from './components/NotificationsBell';
-import SearchBar from './components/SearchBar';
 import CookieBanner from './components/CookieBanner';
-import DailyGoalBadge from './components/DailyGoalBadge';
-import { api } from './lib/api';
-import { useAuth } from './lib/auth';
+import { Header, Footer } from './components/Layout';
 
 // Strony nieczęste / ciężkie (Monaco, Pyodide, Stripe, panel autora/admina) idą w lazy chunki.
 const CourseCatalog = lazy(() => import('./pages/CourseCatalog'));
@@ -56,94 +51,11 @@ const AuthorPayouts = lazy(() => import('./pages/author/Payouts'));
 
 function PageFallback() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 space-y-3">
-      <div className="h-6 w-1/3 bg-gray-100 rounded animate-pulse" />
-      <div className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />
-      <div className="h-4 w-1/2 bg-gray-100 rounded animate-pulse" />
+    <div className="container-narrow py-10 space-y-3">
+      <div className="h-6 w-1/3 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
+      <div className="h-4 w-2/3 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
+      <div className="h-4 w-1/2 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
     </div>
-  );
-}
-
-function Header() {
-  const auth = useAuth();
-  const navigate = useNavigate();
-
-  async function logout() {
-    try {
-      await api.logout();
-    } catch {
-      /* ignore */
-    } finally {
-      auth.clear();
-      navigate('/');
-    }
-  }
-
-  return (
-    <header className="border-b bg-white">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="font-bold text-lg">
-          Kursy
-        </Link>
-        <nav className="flex items-center gap-4 text-sm">
-          <SearchBar />
-          <Link to="/courses" className="hover:underline">
-            Katalog
-          </Link>
-          <Link to="/leaderboard" className="hover:underline">
-            Top XP
-          </Link>
-          <Link to="/pricing" className="hover:underline">
-            Cennik
-          </Link>
-          {auth.isAuthenticated() && (
-            <>
-              <Link to="/my-courses" className="hover:underline">
-                Moje kursy
-              </Link>
-              <Link to="/my-certificates" className="hover:underline">
-                Certyfikaty
-              </Link>
-            </>
-          )}
-          {auth.user?.role === 'Author' || auth.user?.role === 'Admin' ? (
-            <Link to="/author" className="hover:underline">
-              Panel autora
-            </Link>
-          ) : null}
-          {auth.user?.role === 'Admin' && (
-            <Link to="/admin" className="hover:underline">
-              Admin
-            </Link>
-          )}
-          {auth.isAuthenticated() ? (
-            <>
-              <DailyGoalBadge />
-              <StreakPill />
-              <NotificationsBell />
-              <Link to="/account" className="text-gray-500 hover:underline">
-                {auth.user?.displayName}
-              </Link>
-              <button onClick={logout} className="text-gray-500 hover:underline">
-                Wyloguj
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="hover:underline">
-                Zaloguj
-              </Link>
-              <Link
-                to="/register"
-                className="px-3 py-1 bg-black text-white rounded-md text-xs font-medium"
-              >
-                Załóż konto
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
   );
 }
 
@@ -370,15 +282,7 @@ export default function App() {
           </Routes>
         </Suspense>
       </main>
-      <footer className="border-t text-xs text-gray-500 py-3 text-center space-x-3">
-        <span>Kursy — polska platforma do nauki kodowania.</span>
-        <Link to="/terms" className="hover:underline">
-          Regulamin
-        </Link>
-        <Link to="/privacy" className="hover:underline">
-          Prywatność
-        </Link>
-      </footer>
+      <Footer />
       <Toaster />
       <CookieBanner />
     </div>

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, GraduationCap, Mail, Lock, Loader2 } from 'lucide-react';
 import { api, isTwoFactorChallenge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
@@ -70,109 +71,135 @@ export default function Login() {
     [setSession, navigate, target],
   );
 
-  if (twoFactor) {
-    return (
-      <section className="max-w-sm mx-auto px-4 py-16">
-        <h1 className="text-2xl font-bold mb-3">Weryfikacja 2FA</h1>
-        <p className="text-sm text-gray-600 mb-6">
-          Wpisz 6-cyfrowy kod z aplikacji autoryzacyjnej dla <strong>{twoFactor.email}</strong>,
-          albo 8-znakowy kod awaryjny.
-        </p>
-        <form onSubmit={submitTwoFactor} className="space-y-3">
-          <input
-            // Akceptujemy zarówno 6 cyfr (TOTP) jak i 8 znaków A-Z + 2-9 (backup).
-            inputMode="text"
-            maxLength={9}
-            autoComplete="one-time-code"
-            autoFocus
-            placeholder="123456 lub ABCD2345"
-            className="w-full text-center text-2xl tracking-widest font-mono border rounded-md px-3 py-2"
-            value={twoFactorCode}
-            onChange={(e) => setTwoFactorCode(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''))}
-          />
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-          <button
-            type="submit"
-            disabled={pending || twoFactorCode.length < 6}
-            className="w-full px-3 py-2 bg-black text-white rounded-md text-sm font-medium disabled:opacity-50"
-          >
-            {pending ? 'Sprawdzam…' : 'Zatwierdź'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTwoFactor(null);
-              setTwoFactorCode('');
-              setError(null);
-            }}
-            className="w-full px-3 py-2 text-sm text-gray-500 hover:underline"
-          >
-            ← Anuluj
-          </button>
-        </form>
-      </section>
-    );
-  }
-
   return (
-    <section className="max-w-sm mx-auto px-4 py-16">
-      <h1 className="text-2xl font-bold mb-6">Zaloguj się</h1>
+    <section className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      <div className="absolute inset-0 bg-radial-fade pointer-events-none" />
 
-      <div className="mb-3 flex justify-center">
-        <GoogleSignInButton onCredential={onGoogle} />
-      </div>
-      <div className="mb-4">
-        <GitHubSignInButton intent="login" />
-      </div>
-
-      <div className="flex items-center gap-3 my-4 text-xs text-gray-500">
-        <span className="flex-1 border-t" />
-        <span>lub</span>
-        <span className="flex-1 border-t" />
-      </div>
-
-      <form onSubmit={submit} className="space-y-3">
-        <label className="block">
-          <span className="text-sm">Email</span>
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm">Hasło</span>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full px-3 py-2 bg-black text-white rounded-md text-sm font-medium disabled:opacity-50"
+      <div className="relative w-full max-w-md">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 font-bold text-lg justify-center w-full mb-8"
         >
-          {pending ? 'Logowanie…' : 'Zaloguj'}
-        </button>
-      </form>
-      <p className="text-sm text-gray-600 mt-4">
-        Nie masz konta?{' '}
-        <Link to="/register" className="underline">
-          Zarejestruj się
+          <span className="inline-flex w-8 h-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+            <GraduationCap className="w-4 h-4" />
+          </span>
+          Kursy<span className="text-brand-600">.pl</span>
         </Link>
-        {' · '}
-        <Link to="/forgot-password" className="underline">
-          Zapomniałeś hasła?
-        </Link>
-      </p>
+
+        <div className="card p-8">
+          {twoFactor ? (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight">Weryfikacja 2FA</h1>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 mb-6">
+                Wpisz 6-cyfrowy kod z aplikacji dla <strong>{twoFactor.email}</strong>, albo 8-znakowy kod awaryjny.
+              </p>
+              <form onSubmit={submitTwoFactor} className="space-y-4">
+                <input
+                  inputMode="text"
+                  maxLength={9}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  placeholder="123456 lub ABCD2345"
+                  className="input text-center !text-2xl tracking-widest font-mono !py-3"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''))}
+                />
+                {error && <p className="text-rose-600 text-sm">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={pending || twoFactorCode.length < 6}
+                  className="btn-brand w-full !py-3"
+                >
+                  {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {pending ? 'Sprawdzam…' : 'Zatwierdź'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTwoFactor(null);
+                    setTwoFactorCode('');
+                    setError(null);
+                  }}
+                  className="btn-ghost w-full"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Anuluj
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold tracking-tight">Zaloguj się</h1>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 mb-6">
+                Witaj z powrotem 👋
+              </p>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-center">
+                  <GoogleSignInButton onCredential={onGoogle} />
+                </div>
+                <GitHubSignInButton intent="login" />
+              </div>
+
+              <div className="flex items-center gap-3 my-5 text-xs text-zinc-400">
+                <span className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+                <span className="uppercase tracking-wider">lub email</span>
+                <span className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+              </div>
+
+              <form onSubmit={submit} className="space-y-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</span>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      className="input pl-9"
+                      placeholder="ty@kursy.pl"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </label>
+                <label className="block">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Hasło</span>
+                    <Link to="/forgot-password" className="text-xs text-brand-600 hover:underline">
+                      Zapomniałeś?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <input
+                      type="password"
+                      required
+                      autoComplete="current-password"
+                      className="input pl-9"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                </label>
+                {error && <p className="text-rose-600 text-sm">{error}</p>}
+                <button type="submit" disabled={pending} className="btn-brand w-full !py-3">
+                  {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {pending ? 'Logowanie…' : 'Zaloguj się'}
+                </button>
+              </form>
+
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-6 text-center">
+                Nie masz konta?{' '}
+                <Link to="/register" className="font-medium text-brand-600 hover:underline">
+                  Zarejestruj się
+                </Link>
+              </p>
+            </>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
