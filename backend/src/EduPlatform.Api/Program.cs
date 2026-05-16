@@ -220,7 +220,11 @@ app.UseSerilogRequestLogging(opts =>
 
 app.UseCors();
 app.UseRouting();
-app.UseRateLimiter();
+// Rate limiter wyłączony w testach — integracyjki uderzają z 1 IP i przekraczają limit.
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseRateLimiter();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
