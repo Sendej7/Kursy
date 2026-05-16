@@ -49,8 +49,11 @@ def psql(sql):
 
 
 def login(email, password):
-    res = http("POST", "/auth/login", {"email": email, "password": password})
-    return res.get("token") if res else None
+    try:
+        res = http("POST", "/auth/login", {"email": email, "password": password})
+        return res.get("token") if res else None
+    except RuntimeError:
+        return None
 
 
 def create_course(token, title, description, language, tags=None):
