@@ -93,19 +93,19 @@ else
   ok ".env already exists (skipping)"
 fi
 
-log "6/7  Docker compose override (port 80 + bind internals to localhost)"
+log "6/7  Docker compose override (port 80 + nie wystawiamy postgres na host)"
 cat > docker-compose.override.yml <<'EOF'
-# Override dla VPS deploymentu: frontend na :80, postgres+mailhog tylko lokalnie.
+# Override dla VPS deploymentu: frontend na :80, postgres NIE wystawiony na host
+# (zwykle 5432 jest zajęty przez systemowy postgres). Kontenery gadają po
+# wewnętrznym network'u, więc backend i tak widzi postgresa po nazwie usługi.
 services:
   frontend:
     ports:
       - "80:80"
   postgres:
-    ports:
-      - "127.0.0.1:5432:5432"
+    ports: !reset []
   mailhog:
     ports:
-      - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
 EOF
 ok "override.yml written"
