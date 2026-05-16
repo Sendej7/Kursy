@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Kursy.pl VPS bootstrap — odpalasz raz na świeżym Ubuntu 22.04/24.04 VPS jako root.
-# Curl-one-liner: curl -fsSL https://raw.githubusercontent.com/Sendej7/Kursy/claude/coding-platform-plan-18Ywv/scripts/vps-bootstrap.sh | bash
+# Public repo:
+#   curl -fsSL https://raw.githubusercontent.com/Sendej7/Kursy/claude/coding-platform-plan-18Ywv/scripts/vps-bootstrap.sh | bash
+# Private repo (z fine-grained PAT, Contents:Read):
+#   T=github_pat_XXX bash -c "GITHUB_TOKEN=$T; $(curl -fsSL -H \"Authorization: token $T\" https://raw.githubusercontent.com/Sendej7/Kursy/claude/coding-platform-plan-18Ywv/scripts/vps-bootstrap.sh)"
 # Idempotentny — można uruchomić kilka razy, robi to co trzeba.
 
 set -euo pipefail
@@ -9,6 +12,13 @@ BRANCH="${BRANCH:-claude/coding-platform-plan-18Ywv}"
 REPO_URL="${REPO_URL:-https://github.com/Sendej7/Kursy.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/kursy}"
 PUBLIC_IP="$(curl -fsSL --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
+
+# Jeśli repo jest prywatne, podaj GITHUB_TOKEN (fine-grained PAT z Contents:Read).
+# Embedujemy go w URL clone'a tylko lokalnie — nie trafia do remote.
+CLONE_URL="$REPO_URL"
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  CLONE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/Sendej7/Kursy.git"
+fi
 
 log() { echo -e "\n\033[1;34m▶ $*\033[0m"; }
 ok()  { echo -e "\033[1;32m✓ $*\033[0m"; }
@@ -41,14 +51,17 @@ ok "firewall: 22, 80, 443, 5080"
 
 log "4/7  Clone / update repo"
 if [[ ! -d "$INSTALL_DIR/.git" ]]; then
-  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+  git clone --depth 1 --branch "$BRANCH" "$CLONE_URL" "$INSTALL_DIR"
 else
   cd "$INSTALL_DIR"
+  git remote set-url origin "$CLONE_URL"
   git fetch origin "$BRANCH"
   git checkout "$BRANCH"
   git reset --hard "origin/$BRANCH"
 fi
 cd "$INSTALL_DIR"
+# Zdejmujemy token z remote URL po użyciu — gdyby kiedyś git config wyciekł.
+git remote set-url origin "$REPO_URL"
 ok "repo @ $(git rev-parse --short HEAD)"
 
 log "5/7  Generate .env (only if missing)"
